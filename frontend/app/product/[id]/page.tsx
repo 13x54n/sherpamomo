@@ -16,13 +16,7 @@ export default async function ProductPage({ params }: { params: Promise<{ id: st
 
     return (
         <div className="container mx-auto px-4 py-8 min-h-screen">
-            {/* Back Button */}
-            <Link href="/" className="inline-flex items-center text-sm font-medium text-muted-foreground hover:text-primary mb-8 px-4 py-2 bg-muted/20 rounded-full hover:bg-muted/40 transition-colors">
-                <ArrowLeft className="w-4 h-4 mr-2" />
-                Back to Menu
-            </Link>
-
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-start">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-start lg:h-[calc(100vh-8rem)]">
                 {/* Product Image */}
                 <div className="relative aspect-[5/3] md:aspect-square rounded-3xl overflow-hidden shadow-2xl shadow-primary/5">
                     <img

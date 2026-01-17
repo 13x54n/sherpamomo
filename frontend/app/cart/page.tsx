@@ -21,12 +21,6 @@ export default function CartPage() {
 
     return (
         <div className="container px-4 py-5 mx-auto">
-            {/* Back Button */}
-            <Link href="/" className="inline-flex items-center text-sm font-medium text-muted-foreground hover:text-primary mb-4 py-2 bg-muted/20 rounded-full hover:bg-muted/40 transition-colors">
-                <ArrowLeft className="w-4 h-4 mr-2" />
-                Back to Menu
-            </Link>
-
             <h1 className="text-4xl font-bold font-heading mb-10">Your Cart</h1>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
