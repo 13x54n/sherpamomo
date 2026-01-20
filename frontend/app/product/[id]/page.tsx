@@ -1,17 +1,72 @@
-import { products } from '@/lib/data';
+'use client';
+
+import { useEffect, useState } from 'react';
+import { useParams } from 'next/navigation';
+import { Product } from '@/types/product';
+import { getProduct } from '@/lib/api/products';
 import { Badge } from '@/components/ui/badge';
 import Link from 'next/link';
 import { ArrowLeft, Star, ChefHat } from 'lucide-react';
-import { notFound } from 'next/navigation';
 import ProductInteraction from '@/components/ProductInteraction';
 import ReviewMarquee from '@/components/ReviewMarquee';
 
-export default async function ProductPage({ params }: { params: Promise<{ id: string }> }) {
-    const { id } = await params;
-    const product = products.find((p) => p.id === id);
+export default function ProductPage() {
+    const params = useParams();
+    const id = params.id as string;
 
-    if (!product) {
-        notFound();
+    const [product, setProduct] = useState<Product | null>(null);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
+
+    useEffect(() => {
+        const fetchProduct = async () => {
+            if (!id || id === 'undefined') {
+                setError('Invalid product ID');
+                setLoading(false);
+                return;
+            }
+
+            try {
+                setLoading(true);
+                const productData = await getProduct(id);
+                setProduct(productData);
+            } catch (err) {
+                console.error('Failed to fetch product:', err);
+                setError('Product not found');
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        fetchProduct();
+    }, [id]);
+
+    if (loading) {
+        return (
+            <div className="container mx-auto px-4 py-8 min-h-screen flex items-center justify-center">
+                <div className="text-center">
+                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+                    <p className="text-muted-foreground">Loading product...</p>
+                </div>
+            </div>
+        );
+    }
+
+    if (error || !product) {
+        return (
+            <div className="container mx-auto px-4 py-8 min-h-screen flex items-center justify-center">
+                <div className="text-center">
+                    <h1 className="text-2xl font-bold mb-4">Product Not Found</h1>
+                    <p className="text-muted-foreground mb-6">The product you're looking for doesn't exist.</p>
+                    <Link
+                        href="/"
+                        className="inline-flex items-center px-4 py-2 bg-primary text-primary-foreground rounded hover:bg-primary/90"
+                    >
+                        Back to Menu
+                    </Link>
+                </div>
+            </div>
+        );
     }
 
     return (
@@ -69,9 +124,7 @@ export default async function ProductPage({ params }: { params: Promise<{ id: st
                     {/* Interaction - Client Component */}
                     <div className="pt-4">
                         <ProductInteraction
-                            basePrice={product.price}
-                            amountPerUnit={product.amount || 1}
-                            unitName={product.unit || 'pcs'}
+                            product={product}
                         />
                     </div>
 
