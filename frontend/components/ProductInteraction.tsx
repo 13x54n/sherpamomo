@@ -2,22 +2,50 @@
 
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { Minus, Plus, ShoppingCart } from 'lucide-react';
+import { Minus, Plus, ShoppingCart, Loader2 } from 'lucide-react';
+import { useCart } from '@/contexts/cart';
+import { Product } from '@/types/product';
 
 interface ProductInteractionProps {
-    basePrice: number;
-    amountPerUnit: number; // e.g., 10 momos per plate, or 2 (lbs)
-    unitName?: string; // e.g., "pcs", "lb", "oz", "jar"
+    product: Product;
+    basePrice?: number; // Keep for backward compatibility, but prefer product.price
+    amountPerUnit?: number; // Keep for backward compatibility, but prefer product.amount
+    unitName?: string; // Keep for backward compatibility, but prefer product.unit
 }
 
-export default function ProductInteraction({ basePrice, amountPerUnit, unitName = "pcs" }: ProductInteractionProps) {
+export default function ProductInteraction({
+    product,
+    basePrice,
+    amountPerUnit,
+    unitName = "pcs"
+}: ProductInteractionProps) {
     const [quantity, setQuantity] = useState(1);
+    const [isLoading, setIsLoading] = useState(false);
+    const { addToCart } = useCart();
+
+    // Use product data if available, fallback to props for backward compatibility
+    const price = product?.price ?? basePrice ?? 0;
+    const perUnit = product?.amount ?? amountPerUnit ?? 1;
+    const unit = product?.unit ?? unitName;
 
     const increment = () => setQuantity(q => q + 1);
     const decrement = () => setQuantity(q => Math.max(1, q - 1));
 
-    const totalAmount = quantity * amountPerUnit;
-    const totalPrice = (quantity * basePrice).toFixed(2);
+    const totalAmount = quantity * perUnit;
+    const totalPrice = (quantity * price).toFixed(2);
+
+    const handleAddToCart = async () => {
+        if (product && !isLoading) {
+            setIsLoading(true);
+            try {
+                addToCart(product, quantity);
+                // Add a small delay to show the loading animation
+                setTimeout(() => setIsLoading(false), 1000);
+            } catch (error) {
+                setIsLoading(false);
+            }
+        }
+    };
 
     return (
         <div className="space-y-6">
@@ -52,9 +80,18 @@ export default function ProductInteraction({ basePrice, amountPerUnit, unitName 
                 </div>
             </div>
 
-            <Button className="w-full text-lg h-14 rounded-xl shadow-lg shadow-primary/20 hover:shadow-primary/30 transition-all gap-3" size="lg">
-                <ShoppingCart className="w-5 h-5" />
-                <span>Add to Cart</span>
+            <Button
+                onClick={handleAddToCart}
+                disabled={isLoading}
+                className="w-full text-lg h-14 rounded-xl shadow-lg shadow-primary/20 hover:shadow-primary/30 transition-all gap-3"
+                size="lg"
+            >
+                {isLoading ? (
+                    <Loader2 className="w-5 h-5 animate-spin" />
+                ) : (
+                    <ShoppingCart className="w-5 h-5" />
+                )}
+                <span>{isLoading ? 'Adding...' : 'Add to Cart'}</span>
                 <span className="bg-white/20 px-2 py-0.5 rounded text-sm font-semibold ml-auto">
                     ${totalPrice}
                 </span>
