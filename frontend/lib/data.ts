@@ -130,5 +130,3 @@ export const products = [
         unit: 'pcs'
     }
 ];
-
-export const categories = ['All', 'Chicken', 'Veg', 'Buff', 'Pork', 'Beef', 'Sauce'];
