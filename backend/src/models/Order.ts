@@ -11,12 +11,13 @@ export interface IOrderItem {
 
 export interface IOrder extends Document {
     orderId: string;
+    userId?: Schema.Types.ObjectId;
     items: IOrderItem[];
     subtotal: number;
     tax: number;
     shipping: number;
     total: number;
-    status: 'pending' | 'confirmed' | 'preparing' | 'ready' | 'delivered' | 'cancelled';
+    status: 'pending' | 'confirmed' | 'preparing' | 'ready' | 'delivered' | 'cancelled' | 'completed' | 'failed';
     customerInfo?: {
         name: string;
         email: string;
@@ -67,6 +68,11 @@ const OrderSchema: Schema = new Schema({
         required: true,
         unique: true
     },
+    userId: {
+        type: Schema.Types.ObjectId,
+        ref: 'User'
+        // Not required for backwards compatibility with existing orders
+    },
     items: [OrderItemSchema],
     subtotal: {
         type: Number,
@@ -90,7 +96,7 @@ const OrderSchema: Schema = new Schema({
     },
     status: {
         type: String,
-        enum: ['pending', 'confirmed', 'preparing', 'ready', 'delivered', 'cancelled'],
+        enum: ['pending', 'confirmed', 'preparing', 'ready', 'delivered', 'cancelled', 'completed', 'failed'],
         default: 'pending'
     },
     customerInfo: {

@@ -1,6 +1,8 @@
 import mongoose from 'mongoose';
 import dotenv from 'dotenv';
 import Product from '../models/Product';
+import Order from '../models/Order';
+import User from '../models/User';
 import connectDB from '../config/database';
 
 dotenv.config();
@@ -140,7 +142,7 @@ const frontendProducts = [
 ];
 
 // Transform frontend products to match database schema
-const products = frontendProducts.map((product: any) => ({
+const products = frontendProducts.map((product: any, index: number) => ({
     name: product.name,
     description: product.description,
     price: product.price,
@@ -151,21 +153,82 @@ const products = frontendProducts.map((product: any) => ({
     ingredients: product.ingredients,
     amount: product.amount,
     unit: product.unit,
-    featured: ['1', '2', '3', '4'].includes(product.id), // Mark first 4 products as featured
-    inStock: true
+    featured: index < 4, // Mark first 4 products as featured
+    inStock: true,
+    stock: Math.floor(Math.random() * 50) + 10 // Random stock between 10-60
 }));
 
 const seedDatabase = async () => {
     try {
         await connectDB();
 
-        // Clear existing products
-        await Product.deleteMany({});
-        console.log('🗑️ Cleared existing products');
+        console.log('🌱 Seeding database...');
 
-        // Insert new products
-        await Product.insertMany(products);
-        console.log('✅ Successfully seeded database with products');
+        // Clear existing data (but keep admin user)
+        await Product.deleteMany({});
+        await Order.deleteMany({});
+        await User.deleteMany({ email: { $ne: 'admin@sherpamomo.com' } });
+
+        console.log('🧹 Cleared existing data');
+
+        // Seed products
+        const createdProducts = await Product.insertMany(products);
+        console.log(`📦 Seeded ${createdProducts.length} products`);
+
+        // Create admin user if not exists
+        let adminUser = await User.findOne({ email: 'admin@sherpamomo.com' });
+        if (!adminUser) {
+            adminUser = new User({
+                firebaseUid: 'admin-user-123',
+                email: 'admin@sherpamomo.com',
+                name: 'Admin User',
+                phone: '+1234567890'
+            });
+            await adminUser.save();
+            console.log('👑 Created admin user');
+        }
+
+        // Create sample orders (linked to admin user for demo)
+        const sampleOrders = [
+            {
+                orderId: 'ORD-SAMPLE-001',
+                userId: adminUser._id,
+                items: [
+                    {
+                        productId: createdProducts[0]._id,
+                        name: 'Chicken Momo',
+                        price: 12.99,
+                        quantity: 2,
+                        image: createdProducts[0].image,
+                        unit: createdProducts[0].unit
+                    }
+                ],
+                subtotal: 25.98,
+                tax: 2.08,
+                shipping: 5.00,
+                total: 33.06,
+                status: 'delivered',
+                customerInfo: {
+                    name: adminUser.name,
+                    email: adminUser.email,
+                    phone: '+1234567890',
+                    address: '123 Main St, City, State 12345'
+                },
+                paymentInfo: {
+                    method: 'cash_on_delivery',
+                    status: 'completed'
+                }
+            }
+        ];
+
+        await Order.insertMany(sampleOrders);
+        console.log(`📋 Seeded ${sampleOrders.length} sample orders`);
+
+        console.log('✅ Database seeded successfully!');
+        console.log(`📊 Summary:`);
+        console.log(`   - ${createdProducts.length} products`);
+        console.log(`   - 1 admin user`);
+        console.log(`   - ${sampleOrders.length} sample orders`);
 
         process.exit(0);
     } catch (error) {

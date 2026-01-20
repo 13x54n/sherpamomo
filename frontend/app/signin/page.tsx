@@ -18,25 +18,13 @@ export default function SignInPage() {
 
   const handleGoogleSignIn = async () => {
     try {
-      // Simulate Google OAuth flow
-      await new Promise(resolve => setTimeout(resolve, 1500));
-
-      // Simulate successful Google authentication
-      const mockGoogleUser = {
-        name: 'John Doe',
-        email: 'john.doe@gmail.com'
-      };
-
-      // Use the existing signIn method with mock credentials
-      const result = await signIn(mockGoogleUser.email, 'google_auth_token');
+      const result = await signIn();
 
       if (result.success) {
-        toast.success('Successfully signed in with Google!');
+        toast.success(result.message);
         router.push('/');
       } else {
-        // If sign in fails, create a new account
-        toast.success('Account created and signed in with Google!');
-        router.push('/');
+        toast.error(result.message);
       }
     } catch (error) {
       console.error('Google sign-in error:', error);
@@ -62,9 +50,9 @@ export default function SignInPage() {
                 onClick={handleGoogleSignIn}
                 className="w-full bg-white hover:bg-gray-50 text-gray-900 border-2 border-gray-300"
                 size="lg"
-                disabled={isLoading}
+                disabled={false}
               >
-                {isLoading ? (
+                {false ? (
                   <>
                     <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-900 mr-2"></div>
                     Signing in...

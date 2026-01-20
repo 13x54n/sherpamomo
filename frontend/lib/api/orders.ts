@@ -18,7 +18,7 @@ export interface Order {
     tax: number;
     shipping: number;
     total: number;
-    status: 'pending' | 'confirmed' | 'preparing' | 'ready' | 'delivered' | 'cancelled';
+    status: 'pending' | 'confirmed' | 'preparing' | 'ready' | 'delivered' | 'cancelled' | 'completed' | 'failed';
     customerInfo?: {
         name: string;
         email: string;
@@ -111,4 +111,16 @@ export async function updateOrderStatus(orderId: string, status: Order['status']
         method: 'PUT',
         body: JSON.stringify({ status }),
     });
+}
+
+// Cancel order (customer)
+export async function cancelOrder(orderId: string): Promise<{ message: string; order: Order }> {
+    return apiRequest<{ message: string; order: Order }>(`/orders/${orderId}/cancel`, {
+        method: 'PUT',
+    });
+}
+
+// Get user orders (authenticated user only)
+export async function getUserOrders(): Promise<Order[]> {
+    return apiRequest<Order[]>('/orders/user/orders');
 }

@@ -13,6 +13,7 @@ export interface IProduct extends Document {
     unit: string;
     featured?: boolean;
     inStock?: boolean;
+    stock?: number;
     createdAt: Date;
     updatedAt: Date;
 }
@@ -72,6 +73,11 @@ const ProductSchema: Schema = new Schema({
     inStock: {
         type: Boolean,
         default: true
+    },
+    stock: {
+        type: Number,
+        default: 0,
+        min: 0
     }
 }, {
     timestamps: true,

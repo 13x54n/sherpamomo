@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
@@ -11,6 +11,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { Separator } from '@/components/ui/separator';
 import { ArrowLeft, MapPin, Phone, User, Loader2, CheckCircle } from 'lucide-react';
 import { useCart } from '@/contexts/cart';
+import { useAuth } from '@/contexts/auth';
+import { toast } from 'sonner';
 
 interface CheckoutFormData {
   name: string;
@@ -21,6 +23,7 @@ interface CheckoutFormData {
 export default function CheckoutPage() {
   const router = useRouter();
   const { cart, checkout } = useCart();
+  const { user } = useAuth();
   const [isProcessing, setIsProcessing] = useState(false);
   const [isCompleted, setIsCompleted] = useState(false);
   const [formData, setFormData] = useState<CheckoutFormData>({
@@ -29,6 +32,31 @@ export default function CheckoutPage() {
     address: ''
   });
   const [errors, setErrors] = useState<Partial<CheckoutFormData>>({});
+
+  // Pre-populate form with user data from profile (if available)
+  useEffect(() => {
+    if (user) {
+      setFormData(prev => ({
+        ...prev,
+        name: user.name || prev.name,
+      }));
+
+      // Load saved profile data from localStorage
+      const savedProfile = localStorage.getItem(`sherpamomo_profile_${user.id}`);
+      if (savedProfile) {
+        try {
+          const profile = JSON.parse(savedProfile);
+          setFormData(prev => ({
+            ...prev,
+            phone: profile.phone || prev.phone,
+            address: profile.address || prev.address,
+          }));
+        } catch (error) {
+          console.warn('Failed to parse saved profile:', error);
+        }
+      }
+    }
+  }, [user]);
 
   const { items: cartItems, subtotal, totalItems } = cart;
   const shipping = totalItems > 0 ? 5.00 : 0;
@@ -74,24 +102,40 @@ export default function CheckoutPage() {
       const result = await checkout({
         customerInfo: {
           name: formData.name.trim(),
-          email: '', // Optional for pay on delivery
+          email: user?.email || '', // Use authenticated user's email
           phone: formData.phone.trim(),
           address: formData.address.trim()
         },
         paymentInfo: {
-          method: 'cash_on_delivery',
-          status: 'pending'
+          method: 'cash_on_delivery'
         }
       });
 
       if (result.success) {
+        // If user provided phone/address and we have a user, save to profile
+        if (user && (formData.phone.trim() || formData.address.trim())) {
+          try {
+            const profileData = {
+              phone: formData.phone.trim(),
+              address: formData.address.trim(),
+              updatedAt: new Date().toISOString()
+            };
+            localStorage.setItem(`sherpamomo_profile_${user.id}`, JSON.stringify(profileData));
+            console.log('✅ Profile updated with checkout information');
+          } catch (profileError) {
+            console.warn('⚠️ Could not save profile:', profileError);
+            // Don't show error to user as order was successful
+          }
+        }
+
         setIsCompleted(true);
+        toast.success('Order placed successfully!');
       } else {
-        alert(result.message || 'Failed to place order');
+        toast.error(result.message || 'Failed to place order');
       }
     } catch (error) {
       console.error('Checkout error:', error);
-      alert('An error occurred while processing your order');
+      toast.error('An error occurred while processing your order');
     } finally {
       setIsProcessing(false);
     }
@@ -107,7 +151,7 @@ export default function CheckoutPage() {
 
   if (isCompleted) {
     return (
-      <div className="container mx-auto px-4 py-8 min-h-screen flex items-center justify-center">
+      <div className="container mx-auto px-4 py-8 min-h-[70vh] flex items-center justify-center">
         <Card className="w-full max-w-md text-center">
           <CardContent className="pt-8">
             <CheckCircle className="w-16 h-16 text-green-500 mx-auto mb-4" />
@@ -212,13 +256,7 @@ export default function CheckoutPage() {
                     )}
                   </div>
 
-                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                    <h4 className="font-semibold text-blue-900 mb-2">Pay on Delivery</h4>
-                    <p className="text-sm text-blue-800">
-                      You will pay for your order when it is delivered to your address.
-                      Our delivery partner will contact you to confirm the delivery time.
-                    </p>
-                  </div>
+                  
 
                   <Button
                     type="submit"
@@ -282,7 +320,6 @@ export default function CheckoutPage() {
                 </div>
 
                 <div className="text-xs text-muted-foreground bg-muted/50 rounded p-3">
-                  <p>💰 Pay on Delivery - No payment required now</p>
                   <p>🚚 Free delivery on orders over $50</p>
                 </div>
               </CardContent>

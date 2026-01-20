@@ -4,6 +4,8 @@ import dotenv from 'dotenv';
 import connectDB from './config/database';
 import productRoutes from './routes/products';
 import orderRoutes from './routes/orders';
+import userRoutes from './routes/users';
+import { authenticateUser, optionalAuth } from './middleware/auth';
 
 dotenv.config();
 
@@ -17,7 +19,7 @@ connectDB();
 app.use(cors({
     origin: process.env.NODE_ENV === 'production'
         ? process.env.FRONTEND_URL
-        : 'http://localhost:3000',
+        : ['http://localhost:3000', 'http://localhost:3001'],
     credentials: true
 }));
 app.use(express.json({ limit: '10mb' }));
@@ -35,6 +37,7 @@ app.get('/api/health', (req, res) => {
 // API Routes
 app.use('/api/products', productRoutes);
 app.use('/api/orders', orderRoutes);
+app.use('/api/users', authenticateUser, userRoutes);
 
 // 404 handler
 app.use((req, res) => {

@@ -1,5 +1,6 @@
 import express, { Request, Response } from 'express';
 import Order from '../models/Order';
+import { authenticateUser, requireAdmin } from '../middleware/auth';
 
 const router = express.Router();
 
@@ -11,7 +12,7 @@ const generateOrderId = (): string => {
 };
 
 // POST /api/orders - Create new order
-router.post('/', async (req: Request, res: Response) => {
+router.post('/', authenticateUser, async (req: Request, res: Response) => {
     try {
         const { items, customerInfo, paymentInfo } = req.body;
 
@@ -27,6 +28,7 @@ router.post('/', async (req: Request, res: Response) => {
 
         const orderData = {
             orderId: generateOrderId(),
+            userId: req.user!._id,
             items,
             subtotal,
             tax,
@@ -59,6 +61,34 @@ router.post('/', async (req: Request, res: Response) => {
     }
 });
 
+// GET /api/orders/user - Get orders for authenticated user
+router.get('/user/orders', authenticateUser, async (req: Request, res: Response) => {
+    try {
+        if (!req.user) {
+            return res.status(401).json({ message: 'Authentication required' });
+        }
+
+        // Filter orders by authenticated user's ID
+        // Also include orders by email for backwards compatibility with existing orders
+        const userOrders = await Order.find({
+            $or: [
+                { userId: req.user._id },
+                {
+                    userId: { $exists: false },
+                    'customerInfo.email': req.user.email
+                }
+            ]
+        })
+            .sort('-createdAt')
+            .lean();
+
+        res.json(userOrders);
+    } catch (error) {
+        console.error('Error fetching user orders:', error);
+        res.status(500).json({ message: 'Server error' });
+    }
+});
+
 // GET /api/orders/:orderId - Get order by order ID
 router.get('/:orderId', async (req: Request, res: Response) => {
     try {
@@ -80,7 +110,7 @@ router.put('/:orderId/status', async (req: Request, res: Response) => {
     try {
         const { status } = req.body;
 
-        if (!['pending', 'confirmed', 'preparing', 'ready', 'delivered', 'cancelled'].includes(status)) {
+        if (!['pending', 'confirmed', 'preparing', 'ready', 'delivered', 'cancelled', 'completed', 'failed'].includes(status)) {
             return res.status(400).json({ message: 'Invalid status' });
         }
 
@@ -97,6 +127,38 @@ router.put('/:orderId/status', async (req: Request, res: Response) => {
         res.json(order);
     } catch (error) {
         console.error('Error updating order status:', error);
+        res.status(500).json({ message: 'Server error' });
+    }
+});
+
+// PUT /api/orders/:orderId/cancel - Cancel order (customer)
+router.put('/:orderId/cancel', async (req: Request, res: Response) => {
+    try {
+        const order = await Order.findOne({ orderId: req.params.orderId });
+
+        if (!order) {
+            return res.status(404).json({ message: 'Order not found' });
+        }
+
+        // Only allow cancellation for certain statuses
+        if (!['pending', 'confirmed', 'preparing'].includes(order.status)) {
+            return res.status(400).json({
+                message: 'Order cannot be cancelled at this stage'
+            });
+        }
+
+        // Update order status to cancelled
+        order.status = 'cancelled';
+        await order.save();
+
+        console.log(`📦 Order ${order.orderId} cancelled by customer`);
+
+        res.json({
+            message: 'Order cancelled successfully',
+            order: order
+        });
+    } catch (error) {
+        console.error('Error cancelling order:', error);
         res.status(500).json({ message: 'Server error' });
     }
 });
@@ -141,6 +203,62 @@ router.get('/', async (req: Request, res: Response) => {
         });
     } catch (error) {
         console.error('Error fetching orders:', error);
+        res.status(500).json({ message: 'Server error' });
+    }
+});
+
+// GET /api/orders/stats - Get order statistics (admin only)
+router.get('/stats', requireAdmin, async (req: Request, res: Response) => {
+    try {
+        const totalOrders = await Order.countDocuments();
+        const pendingOrders = await Order.countDocuments({ status: 'pending' });
+        const confirmedOrders = await Order.countDocuments({ status: 'confirmed' });
+        const preparingOrders = await Order.countDocuments({ status: 'preparing' });
+        const readyOrders = await Order.countDocuments({ status: 'ready' });
+        const deliveredOrders = await Order.countDocuments({ status: 'delivered' });
+        const cancelledOrders = await Order.countDocuments({ status: 'cancelled' });
+
+        // Revenue calculations
+        const allOrders = await Order.find({}, 'total createdAt').lean();
+        const totalRevenue = allOrders.reduce((sum, order) => sum + order.total, 0);
+
+        // Recent orders (last 24 hours)
+        const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000);
+        const deliveredToday = await Order.countDocuments({
+            status: 'delivered',
+            updatedAt: { $gte: yesterday }
+        });
+
+        // Recent orders list
+        const recentOrders = await Order.find()
+            .sort('-createdAt')
+            .limit(5)
+            .select('orderId customerInfo total status createdAt')
+            .lean();
+
+        res.json({
+            totalOrders,
+            totalRevenue,
+            orderStats: {
+                pending: pendingOrders,
+                confirmed: confirmedOrders,
+                preparing: preparingOrders,
+                ready: readyOrders,
+                delivered: deliveredOrders,
+                cancelled: cancelledOrders
+            },
+            deliveredToday,
+            recentOrders: recentOrders.map(order => ({
+                id: order._id,
+                orderId: order.orderId,
+                customer: order.customerInfo?.name || 'N/A',
+                total: order.total,
+                status: order.status,
+                date: order.createdAt
+            }))
+        });
+    } catch (error) {
+        console.error('Error fetching order stats:', error);
         res.status(500).json({ message: 'Server error' });
     }
 });

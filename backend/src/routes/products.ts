@@ -1,5 +1,6 @@
 import express, { Request, Response } from 'express';
 import Product from '../models/Product';
+import { requireAdmin } from '../middleware/auth';
 
 const router = express.Router();
 
@@ -207,6 +208,150 @@ router.delete('/:id', async (req: Request, res: Response) => {
         res.json({ message: 'Product deleted successfully' });
     } catch (error) {
         console.error('Error deleting product:', error);
+        res.status(500).json({ message: 'Server error' });
+    }
+});
+
+// GET /api/products/stats - Get product statistics (admin only)
+router.get('/stats', requireAdmin, async (req: Request, res: Response) => {
+    try {
+        const totalProducts = await Product.countDocuments();
+        const inStockProducts = await Product.countDocuments({ inStock: true });
+        const outOfStockProducts = await Product.countDocuments({ inStock: false });
+        const featuredProducts = await Product.countDocuments({ featured: true });
+
+        // Low stock products (less than 10 items)
+        const lowStockProducts = await Product.find({
+            inStock: true,
+            stock: { $lt: 10, $gt: 0 }
+        })
+        .select('name stock')
+        .limit(5)
+        .lean();
+
+        // Top rated products
+        const topRatedProducts = await Product.find({ inStock: true })
+            .sort('-rating')
+            .select('name rating reviewCount')
+            .limit(5)
+            .lean();
+
+        // Products by category
+        const categoryStats = await Product.aggregate([
+            {
+                $group: {
+                    _id: '$category',
+                    count: { $sum: 1 },
+                    totalStock: { $sum: '$stock' },
+                    averagePrice: { $avg: '$price' }
+                }
+            },
+            {
+                $sort: { count: -1 }
+            }
+        ]);
+
+        res.json({
+            totalProducts,
+            inStockProducts,
+            outOfStockProducts,
+            featuredProducts,
+            lowStockProducts: lowStockProducts.map(p => ({
+                name: p.name,
+                stock: p.stock
+            })),
+            topRatedProducts: topRatedProducts.map(p => ({
+                name: p.name,
+                rating: p.rating,
+                reviewCount: p.reviewCount
+            })),
+            categoryStats
+        });
+    } catch (error) {
+        console.error('Error fetching product stats:', error);
+        res.status(500).json({ message: 'Server error' });
+    }
+});
+
+// PUT /api/products/:id/stock - Update product stock (admin only)
+router.put('/:id/stock', requireAdmin, async (req: Request, res: Response) => {
+    try {
+        const { stock, inStock } = req.body;
+
+        if (typeof stock !== 'number' || stock < 0) {
+            return res.status(400).json({ message: 'Invalid stock value' });
+        }
+
+        const product = await Product.findByIdAndUpdate(
+            req.params.id,
+            {
+                stock,
+                inStock: inStock !== undefined ? inStock : stock > 0
+            },
+            { new: true, runValidators: true }
+        );
+
+        if (!product) {
+            return res.status(404).json({ message: 'Product not found' });
+        }
+
+        res.json({
+            message: 'Product stock updated successfully',
+            product: {
+                id: product._id,
+                name: product.name,
+                stock: product.stock,
+                inStock: product.inStock
+            }
+        });
+    } catch (error) {
+        console.error('Error updating product stock:', error);
+        res.status(500).json({ message: 'Server error' });
+    }
+});
+
+// PUT /api/products/bulk/stock - Bulk update stock (admin only)
+router.put('/bulk/stock', requireAdmin, async (req: Request, res: Response) => {
+    try {
+        const { updates } = req.body; // Array of { id, stock, inStock }
+
+        if (!Array.isArray(updates)) {
+            return res.status(400).json({ message: 'Updates must be an array' });
+        }
+
+        const results = [];
+        for (const update of updates) {
+            const { id, stock, inStock } = update;
+
+            if (typeof stock !== 'number' || stock < 0) {
+                continue; // Skip invalid updates
+            }
+
+            const product = await Product.findByIdAndUpdate(
+                id,
+                {
+                    stock,
+                    inStock: inStock !== undefined ? inStock : stock > 0
+                },
+                { new: true }
+            );
+
+            if (product) {
+                results.push({
+                    id: product._id,
+                    name: product.name,
+                    stock: product.stock,
+                    inStock: product.inStock
+                });
+            }
+        }
+
+        res.json({
+            message: `Updated ${results.length} products`,
+            updatedProducts: results
+        });
+    } catch (error) {
+        console.error('Error bulk updating product stock:', error);
         res.status(500).json({ message: 'Server error' });
     }
 });

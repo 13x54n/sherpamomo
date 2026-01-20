@@ -7,17 +7,34 @@ class ApiError extends Error {
     }
 }
 
+// Import auth functions - we'll need to get Firebase auth state
+import { getAuth } from 'firebase/auth';
+import firebaseApp from '@/lib/firebase';
+
 async function apiRequest<T>(
     endpoint: string,
     options: RequestInit = {}
 ): Promise<T> {
     const url = `${API_BASE_URL}${endpoint}`;
 
+    // Get Firebase auth headers if user is authenticated
+    const auth = getAuth(firebaseApp);
+    const user = auth.currentUser;
+
+    const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+        ...((options.headers as Record<string, string>) || {}),
+    };
+
+    // Add Firebase authentication headers if user is logged in
+    if (user) {
+        headers['x-firebase-uid'] = user.uid;
+        headers['x-user-email'] = user.email || '';
+        headers['x-user-name'] = user.displayName || '';
+    }
+
     const config: RequestInit = {
-        headers: {
-            'Content-Type': 'application/json',
-            ...options.headers,
-        },
+        headers,
         ...options,
     };
 
