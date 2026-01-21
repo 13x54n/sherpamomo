@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
@@ -16,7 +16,17 @@ import {
   SidebarTrigger,
 } from '@/components/ui/sidebar';
 import { Separator } from '@/components/ui/separator';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { useAdminAuth } from '@/contexts/auth';
+import { Loader2 } from 'lucide-react';
 import {
   BarChart3,
   Package,
@@ -24,13 +34,15 @@ import {
   LogOut,
   Home,
   Shield,
-  User
+  User,
+  Users
 } from 'lucide-react';
 
 const adminNavigation = [
   { name: 'Dashboard', href: '/', icon: BarChart3 },
   { name: 'Products', href: '/admin/products', icon: Package },
   { name: 'Orders', href: '/admin/orders', icon: ShoppingCart },
+  { name: 'Users', href: '/admin/users', icon: Users },
 ];
 
 export default function AdminLayout({
@@ -40,30 +52,42 @@ export default function AdminLayout({
 }) {
   const router = useRouter();
   const pathname = usePathname();
+  const { user, isAuthenticated, isLoading, signOut } = useAdminAuth();
 
-  // Admin access is always granted - no authentication required
-  const isAdmin = true;
+  // Redirect to sign-in if not authenticated (after loading is complete)
+  useEffect(() => {
+    if (!isLoading && !isAuthenticated) {
+      router.push('/signin');
+    }
+  }, [isAuthenticated, isLoading, router]);
 
-  if (!isAdmin) {
+  // Show loading state while checking authentication
+  if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="text-center">
-          <Shield className="mx-auto h-12 w-12 text-destructive" />
-          <h1 className="mt-4 text-2xl font-bold">Access Denied</h1>
-          <p className="mt-2 text-muted-foreground">You don't have permission to access the admin panel.</p>
-          <Button asChild className="mt-4">
-            <a href="http://localhost:3000" target="_blank" rel="noopener noreferrer">
-              Go to Store
-            </a>
-          </Button>
+          <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4" />
+          <p className="text-sm text-muted-foreground">Checking authentication...</p>
         </div>
       </div>
     );
   }
 
-  const handleSignOut = () => {
-    // Implement sign out logic
-    router.push('/');
+  // Don't render anything if not authenticated (redirect will happen in useEffect)
+  if (!isAuthenticated) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="text-center">
+          <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4" />
+          <p className="text-sm text-muted-foreground">Redirecting to sign in...</p>
+        </div>
+      </div>
+    );
+  }
+
+  const handleSignOut = async () => {
+    await signOut();
+    router.push('/signin');
   };
 
   return (
@@ -72,8 +96,7 @@ export default function AdminLayout({
         <Sidebar className="border-r">
           <SidebarHeader className="border-b px-6 py-4">
             <div className="flex items-center gap-2">
-              <Shield className="h-8 w-8 text-orange-500" />
-              <span className="text-xl font-bold">Sherpa Momo Admin</span>
+              <span className="text-xl font-bold">Sherpa Momo</span>
             </div>
           </SidebarHeader>
 
@@ -96,49 +119,39 @@ export default function AdminLayout({
           </SidebarContent>
 
           <SidebarFooter className="border-t p-4">
-            <div className="flex items-center gap-3 mb-3">
-              <Avatar className="h-8 w-8">
-                <AvatarFallback className="bg-orange-500 text-white">
-                  <User className="h-4 w-4" />
-                </AvatarFallback>
-              </Avatar>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium truncate">Admin User</p>
-                <p className="text-xs text-muted-foreground truncate">admin@sherpamomo.com</p>
-              </div>
-            </div>
-            <Separator className="mb-3" />
-            <Button
-              variant="ghost"
-              className="w-full justify-start text-destructive hover:text-destructive hover:bg-destructive/10"
-              onClick={handleSignOut}
-            >
-              <LogOut className="mr-2 h-4 w-4" />
-              Sign Out
-            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" className="w-full justify-start gap-2 p-2">
+                  <Avatar className="h-8 w-8">
+                    <AvatarImage src={user?.photoURL || ''} alt={user?.name || ''} />
+                    <AvatarFallback>
+                      {user?.name?.charAt(0)?.toUpperCase() || 'A'}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div className="flex flex-col items-start text-left">
+                    <span className="text-sm font-medium truncate">
+                      {user?.name || 'Admin User'}
+                    </span>
+                    <span className="text-xs text-muted-foreground truncate">
+                      {user?.email || 'admin@sherpamomo.com'}
+                    </span>
+                  </div>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" className="w-56">
+                <DropdownMenuLabel>My Account</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={handleSignOut}>
+                  <LogOut className="mr-2 h-4 w-4" />
+                  Sign Out
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </SidebarFooter>
         </Sidebar>
 
         {/* Main Content */}
         <div className="flex-1 flex flex-col">
-          {/* Top Bar */}
-          <header className="sticky top-0 z-40 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-            <div className="flex h-14 items-center px-4 lg:px-6">
-              <SidebarTrigger className="lg:hidden" />
-              <div className="flex-1" />
-              <div className="flex items-center gap-4">
-                <a
-                  href="http://localhost:3000"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
-                >
-                  <Home className="h-4 w-4" />
-                  Back to Store
-                </a>
-              </div>
-            </div>
-          </header>
 
           {/* Page Content */}
           <main className="flex-1">

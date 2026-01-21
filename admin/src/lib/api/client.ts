@@ -1,4 +1,8 @@
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001/api';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001';
+
+// Import Firebase auth for admin authentication
+import { getAuth } from 'firebase/auth';
+import firebaseApp from '@/lib/firebase';
 
 interface ApiRequestOptions extends RequestInit {
   requiresAuth?: boolean;
@@ -16,8 +20,20 @@ async function apiRequest<T>(
     ...((fetchOptions.headers as Record<string, string>) || {}),
   };
 
-  // Admin app doesn't require authentication headers
-  // Backend admin routes work without authentication
+  // Add Firebase authentication headers if user is logged in
+  try {
+    const auth = getAuth(firebaseApp);
+    const user = auth.currentUser;
+
+    if (user) {
+      headers['x-firebase-uid'] = user.uid;
+      headers['x-user-email'] = user.email || '';
+      headers['x-user-name'] = user.displayName || '';
+    }
+  } catch (error) {
+    // Silently fail if Firebase is not available
+    console.warn('Firebase not available for admin API requests');
+  }
 
   const response = await fetch(url, {
     ...fetchOptions,

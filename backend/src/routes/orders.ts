@@ -11,6 +11,110 @@ const generateOrderId = (): string => {
     return `ORD-${timestamp}-${random}`.toUpperCase();
 };
 
+// GET /api/orders/stats - Get order statistics (admin only)
+router.get('/stats', requireAdmin, async (req: Request, res: Response) => {
+    try {
+        const totalOrders = await Order.countDocuments();
+
+        // Order status counts
+        const pendingOrders = await Order.countDocuments({ status: 'pending' });
+        const confirmedOrders = await Order.countDocuments({ status: 'confirmed' });
+        const preparingOrders = await Order.countDocuments({ status: 'preparing' });
+        const readyOrders = await Order.countDocuments({ status: 'ready' });
+        const deliveredOrders = await Order.countDocuments({ status: 'delivered' });
+        const cancelledOrders = await Order.countDocuments({ status: 'cancelled' });
+        const completedOrders = await Order.countDocuments({ status: 'completed' });
+        const failedOrders = await Order.countDocuments({ status: 'failed' });
+
+        // Revenue calculations
+        const allOrders = await Order.find({}, 'total createdAt').lean();
+        const totalRevenue = allOrders.reduce((sum, order) => sum + order.total, 0);
+
+        // Monthly revenue comparison
+        const now = new Date();
+        const thisMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+        const lastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+        const nextMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+
+        const thisMonthRevenue = await Order.aggregate([
+            { $match: { createdAt: { $gte: thisMonth, $lt: nextMonth } } },
+            { $group: { _id: null, total: { $sum: '$total' } } }
+        ]);
+
+        const lastMonthRevenue = await Order.aggregate([
+            { $match: { createdAt: { $gte: lastMonth, $lt: thisMonth } } },
+            { $group: { _id: null, total: { $sum: '$total' } } }
+        ]);
+
+        const currentMonthRevenue = thisMonthRevenue[0]?.total || 0;
+        const previousMonthRevenue = lastMonthRevenue[0]?.total || 0;
+
+        // Orders delivered today
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const tomorrow = new Date(today);
+        tomorrow.setDate(tomorrow.getDate() + 1);
+
+        const deliveredToday = await Order.countDocuments({
+            status: 'delivered',
+            updatedAt: { $gte: today, $lt: tomorrow }
+        });
+
+        // Recent orders list (last 10 orders)
+        const recentOrders = await Order.find()
+            .sort('-createdAt')
+            .limit(10)
+            .select('orderId customerInfo total status createdAt updatedAt')
+            .lean();
+
+        // Calculate revenue change percentage
+        const revenueChange = previousMonthRevenue > 0
+            ? ((currentMonthRevenue - previousMonthRevenue) / previousMonthRevenue) * 100
+            : 0;
+
+        // Calculate order change (this month vs last month)
+        const thisMonthOrders = await Order.countDocuments({
+            createdAt: { $gte: thisMonth, $lt: nextMonth }
+        });
+        const lastMonthOrders = await Order.countDocuments({
+            createdAt: { $gte: lastMonth, $lt: thisMonth }
+        });
+        const orderChange = lastMonthOrders > 0
+            ? ((thisMonthOrders - lastMonthOrders) / lastMonthOrders) * 100
+            : 0;
+
+        res.json({
+            totalOrders,
+            totalRevenue: Number(totalRevenue.toFixed(2)),
+            revenueChange: Number(revenueChange.toFixed(1)),
+            orderChange: Number(orderChange.toFixed(1)),
+            deliveredToday,
+            orderStats: {
+                pending: pendingOrders,
+                confirmed: confirmedOrders,
+                preparing: preparingOrders,
+                ready: readyOrders,
+                delivered: deliveredOrders,
+                cancelled: cancelledOrders,
+                completed: completedOrders,
+                failed: failedOrders
+            },
+            recentOrders: recentOrders.map(order => ({
+                id: order._id.toString(),
+                orderId: order.orderId,
+                customer: order.customerInfo?.name || 'N/A',
+                total: Number(order.total.toFixed(2)),
+                status: order.status,
+                date: order.createdAt,
+                updatedAt: order.updatedAt
+            }))
+        });
+    } catch (error) {
+        console.error('Error fetching order stats:', error);
+        res.status(500).json({ message: 'Server error' });
+    }
+});
+
 // POST /api/orders - Create new order
 router.post('/', authenticateUser, async (req: Request, res: Response) => {
     try {
@@ -85,6 +189,69 @@ router.get('/user/orders', authenticateUser, async (req: Request, res: Response)
         res.json(userOrders);
     } catch (error) {
         console.error('Error fetching user orders:', error);
+        res.status(500).json({ message: 'Server error' });
+    }
+});
+
+// GET /api/orders - Get all orders with pagination (admin only)
+router.get('/', requireAdmin, async (req: Request, res: Response) => {
+    try {
+        const {
+            page = '1',
+            limit = '20',
+            status,
+            search,
+            dateFrom,
+            dateTo
+        } = req.query;
+
+        const pageNum = parseInt(page as string);
+        const limitNum = parseInt(limit as string);
+        const skip = (pageNum - 1) * limitNum;
+
+        // Build filter query
+        const query: any = {};
+
+        if (status && status !== 'all') {
+            query.status = status;
+        }
+
+        if (search) {
+            query.$or = [
+                { orderId: { $regex: search, $options: 'i' } },
+                { 'customerInfo.name': { $regex: search, $options: 'i' } },
+                { 'customerInfo.email': { $regex: search, $options: 'i' } }
+            ];
+        }
+
+        if (dateFrom || dateTo) {
+            query.createdAt = {};
+            if (dateFrom) {
+                query.createdAt.$gte = new Date(dateFrom as string);
+            }
+            if (dateTo) {
+                query.createdAt.$lte = new Date(dateTo as string);
+            }
+        }
+
+        const orders = await Order.find(query)
+            .sort('-createdAt')
+            .limit(limitNum)
+            .skip(skip)
+            .lean();
+
+        const total = await Order.countDocuments(query);
+
+        res.json({
+            orders,
+            total,
+            page: pageNum,
+            pages: Math.ceil(total / limitNum),
+            hasNextPage: pageNum * limitNum < total,
+            hasPrevPage: pageNum > 1
+        });
+    } catch (error) {
+        console.error('Error fetching orders:', error);
         res.status(500).json({ message: 'Server error' });
     }
 });
@@ -203,62 +370,6 @@ router.get('/', async (req: Request, res: Response) => {
         });
     } catch (error) {
         console.error('Error fetching orders:', error);
-        res.status(500).json({ message: 'Server error' });
-    }
-});
-
-// GET /api/orders/stats - Get order statistics (admin only)
-router.get('/stats', requireAdmin, async (req: Request, res: Response) => {
-    try {
-        const totalOrders = await Order.countDocuments();
-        const pendingOrders = await Order.countDocuments({ status: 'pending' });
-        const confirmedOrders = await Order.countDocuments({ status: 'confirmed' });
-        const preparingOrders = await Order.countDocuments({ status: 'preparing' });
-        const readyOrders = await Order.countDocuments({ status: 'ready' });
-        const deliveredOrders = await Order.countDocuments({ status: 'delivered' });
-        const cancelledOrders = await Order.countDocuments({ status: 'cancelled' });
-
-        // Revenue calculations
-        const allOrders = await Order.find({}, 'total createdAt').lean();
-        const totalRevenue = allOrders.reduce((sum, order) => sum + order.total, 0);
-
-        // Recent orders (last 24 hours)
-        const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000);
-        const deliveredToday = await Order.countDocuments({
-            status: 'delivered',
-            updatedAt: { $gte: yesterday }
-        });
-
-        // Recent orders list
-        const recentOrders = await Order.find()
-            .sort('-createdAt')
-            .limit(5)
-            .select('orderId customerInfo total status createdAt')
-            .lean();
-
-        res.json({
-            totalOrders,
-            totalRevenue,
-            orderStats: {
-                pending: pendingOrders,
-                confirmed: confirmedOrders,
-                preparing: preparingOrders,
-                ready: readyOrders,
-                delivered: deliveredOrders,
-                cancelled: cancelledOrders
-            },
-            deliveredToday,
-            recentOrders: recentOrders.map(order => ({
-                id: order._id,
-                orderId: order.orderId,
-                customer: order.customerInfo?.name || 'N/A',
-                total: order.total,
-                status: order.status,
-                date: order.createdAt
-            }))
-        });
-    } catch (error) {
-        console.error('Error fetching order stats:', error);
         res.status(500).json({ message: 'Server error' });
     }
 });

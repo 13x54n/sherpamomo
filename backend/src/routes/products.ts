@@ -127,6 +127,126 @@ router.get('/featured', async (req: Request, res: Response) => {
     }
 });
 
+// GET /api/products/stats - Get product statistics (admin only)
+router.get('/stats', requireAdmin, async (req: Request, res: Response) => {
+    try {
+        const totalProducts = await Product.countDocuments();
+        const inStockProducts = await Product.countDocuments({ inStock: true });
+        const outOfStockProducts = await Product.countDocuments({ inStock: false });
+        const featuredProducts = await Product.countDocuments({ featured: true });
+
+        // Low stock products (less than 10 items, sorted by stock level)
+        const lowStockProducts = await Product.find({
+            inStock: true,
+            stock: { $lt: 10, $gt: 0 }
+        })
+        .select('name stock category price')
+        .sort('stock') // Sort by lowest stock first
+        .limit(8)
+        .lean();
+
+        // Top rated products
+        const topRatedProducts = await Product.find({ inStock: true })
+            .sort('-rating')
+            .select('name rating reviewCount category price')
+            .limit(5)
+            .lean();
+
+        // Products by category with enhanced stats
+        const categoryStats = await Product.aggregate([
+            {
+                $group: {
+                    _id: '$category',
+                    count: { $sum: 1 },
+                    totalStock: { $sum: '$stock' },
+                    averagePrice: { $avg: '$price' },
+                    minPrice: { $min: '$price' },
+                    maxPrice: { $max: '$price' },
+                    totalValue: { $sum: { $multiply: ['$price', '$stock'] } }
+                }
+            },
+            {
+                $sort: { count: -1 }
+            }
+        ]);
+
+        // Calculate total inventory value
+        const totalInventoryValue = await Product.aggregate([
+            { $match: { inStock: true } },
+            {
+                $group: {
+                    _id: null,
+                    totalValue: { $sum: { $multiply: ['$price', '$stock'] } }
+                }
+            }
+        ]);
+
+        // Get new products added this month
+        const now = new Date();
+        const thisMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+        const newProductsThisMonth = await Product.countDocuments({
+            createdAt: { $gte: thisMonth }
+        });
+
+        // Get products with no reviews
+        const productsWithoutReviews = await Product.countDocuments({
+            $or: [
+                { reviewCount: { $exists: false } },
+                { reviewCount: 0 }
+            ]
+        });
+
+        // Average rating across all products
+        const ratingStats = await Product.aggregate([
+            { $match: { rating: { $exists: true, $gt: 0 } } },
+            {
+                $group: {
+                    _id: null,
+                    avgRating: { $avg: '$rating' },
+                    totalReviews: { $sum: '$reviewCount' }
+                }
+            }
+        ]);
+
+        res.json({
+            totalProducts,
+            inStockProducts,
+            outOfStockProducts,
+            featuredProducts,
+            newProductsThisMonth,
+            productsWithoutReviews,
+            totalInventoryValue: Number((totalInventoryValue[0]?.totalValue || 0).toFixed(2)),
+            averageRating: Number((ratingStats[0]?.avgRating || 0).toFixed(1)),
+            totalReviews: ratingStats[0]?.totalReviews || 0,
+            lowStockProducts: lowStockProducts.map(p => ({
+                name: p.name,
+                stock: p.stock,
+                category: p.category,
+                price: Number(p.price.toFixed(2))
+            })),
+            topRatedProducts: topRatedProducts.map(p => ({
+                name: p.name,
+                rating: Number(p.rating.toFixed(1)),
+                reviewCount: p.reviewCount,
+                category: p.category,
+                price: Number(p.price.toFixed(2))
+            })),
+            categoryStats: categoryStats.map(cat => ({
+                category: cat._id,
+                count: cat.count,
+                totalStock: cat.totalStock,
+                averagePrice: Number(cat.averagePrice.toFixed(2)),
+                minPrice: Number(cat.minPrice.toFixed(2)),
+                maxPrice: Number(cat.maxPrice.toFixed(2)),
+                totalValue: Number(cat.totalValue.toFixed(2))
+            }))
+        });
+    } catch (error) {
+        console.error('Error fetching product stats:', error);
+        res.status(500).json({ message: 'Server error' });
+    }
+});
+
 // GET /api/products/:id - Get single product
 router.get('/:id', async (req: Request, res: Response) => {
     try {
@@ -220,34 +340,76 @@ router.get('/stats', requireAdmin, async (req: Request, res: Response) => {
         const outOfStockProducts = await Product.countDocuments({ inStock: false });
         const featuredProducts = await Product.countDocuments({ featured: true });
 
-        // Low stock products (less than 10 items)
+        // Low stock products (less than 10 items, sorted by stock level)
         const lowStockProducts = await Product.find({
             inStock: true,
             stock: { $lt: 10, $gt: 0 }
         })
-        .select('name stock')
-        .limit(5)
+        .select('name stock category price')
+        .sort('stock') // Sort by lowest stock first
+        .limit(8)
         .lean();
 
         // Top rated products
         const topRatedProducts = await Product.find({ inStock: true })
             .sort('-rating')
-            .select('name rating reviewCount')
+            .select('name rating reviewCount category price')
             .limit(5)
             .lean();
 
-        // Products by category
+        // Products by category with enhanced stats
         const categoryStats = await Product.aggregate([
             {
                 $group: {
                     _id: '$category',
                     count: { $sum: 1 },
                     totalStock: { $sum: '$stock' },
-                    averagePrice: { $avg: '$price' }
+                    averagePrice: { $avg: '$price' },
+                    minPrice: { $min: '$price' },
+                    maxPrice: { $max: '$price' },
+                    totalValue: { $sum: { $multiply: ['$price', '$stock'] } }
                 }
             },
             {
                 $sort: { count: -1 }
+            }
+        ]);
+
+        // Calculate total inventory value
+        const totalInventoryValue = await Product.aggregate([
+            { $match: { inStock: true } },
+            {
+                $group: {
+                    _id: null,
+                    totalValue: { $sum: { $multiply: ['$price', '$stock'] } }
+                }
+            }
+        ]);
+
+        // Get new products added this month
+        const now = new Date();
+        const thisMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+        const newProductsThisMonth = await Product.countDocuments({
+            createdAt: { $gte: thisMonth }
+        });
+
+        // Get products with no reviews
+        const productsWithoutReviews = await Product.countDocuments({
+            $or: [
+                { reviewCount: { $exists: false } },
+                { reviewCount: 0 }
+            ]
+        });
+
+        // Average rating across all products
+        const ratingStats = await Product.aggregate([
+            { $match: { rating: { $exists: true, $gt: 0 } } },
+            {
+                $group: {
+                    _id: null,
+                    avgRating: { $avg: '$rating' },
+                    totalReviews: { $sum: '$reviewCount' }
+                }
             }
         ]);
 
@@ -256,16 +418,33 @@ router.get('/stats', requireAdmin, async (req: Request, res: Response) => {
             inStockProducts,
             outOfStockProducts,
             featuredProducts,
+            newProductsThisMonth,
+            productsWithoutReviews,
+            totalInventoryValue: Number((totalInventoryValue[0]?.totalValue || 0).toFixed(2)),
+            averageRating: Number((ratingStats[0]?.avgRating || 0).toFixed(1)),
+            totalReviews: ratingStats[0]?.totalReviews || 0,
             lowStockProducts: lowStockProducts.map(p => ({
                 name: p.name,
-                stock: p.stock
+                stock: p.stock,
+                category: p.category,
+                price: Number(p.price.toFixed(2))
             })),
             topRatedProducts: topRatedProducts.map(p => ({
                 name: p.name,
-                rating: p.rating,
-                reviewCount: p.reviewCount
+                rating: Number(p.rating.toFixed(1)),
+                reviewCount: p.reviewCount,
+                category: p.category,
+                price: Number(p.price.toFixed(2))
             })),
-            categoryStats
+            categoryStats: categoryStats.map(cat => ({
+                category: cat._id,
+                count: cat.count,
+                totalStock: cat.totalStock,
+                averagePrice: Number(cat.averagePrice.toFixed(2)),
+                minPrice: Number(cat.minPrice.toFixed(2)),
+                maxPrice: Number(cat.maxPrice.toFixed(2)),
+                totalValue: Number(cat.totalValue.toFixed(2))
+            }))
         });
     } catch (error) {
         console.error('Error fetching product stats:', error);

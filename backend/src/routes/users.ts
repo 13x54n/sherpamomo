@@ -1,5 +1,6 @@
 import express, { Request, Response } from 'express';
 import User from '../models/User';
+import { requireAdmin } from '../middleware/auth';
 
 const router = express.Router();
 
@@ -82,17 +83,172 @@ router.get('/profile/:firebaseUid', async (req: Request, res: Response) => {
 router.get('/stats', async (req: Request, res: Response) => {
     try {
         const totalUsers = await User.countDocuments();
+
+        // Recent users (last 30 days)
+        const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
         const recentUsers = await User.countDocuments({
-            createdAt: { $gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) } // Last 30 days
+            createdAt: { $gte: thirtyDaysAgo }
         });
+
+        // Users with phone numbers
+        const usersWithPhone = await User.countDocuments({
+            phone: { $exists: true, $nin: [null, ''] }
+        });
+
+        // Users with addresses
+        const usersWithAddress = await User.countDocuments({
+            address: { $exists: true, $nin: [null, ''] }
+        });
+
+        // Users by authentication method (firebase vs others)
+        const firebaseUsers = await User.countDocuments({
+            firebaseUid: { $exists: true, $ne: null }
+        });
+
+        // Monthly user growth (last 6 months)
+        const monthlyGrowth = [];
+        for (let i = 5; i >= 0; i--) {
+            const monthStart = new Date();
+            monthStart.setMonth(monthStart.getMonth() - i, 1);
+            monthStart.setHours(0, 0, 0, 0);
+
+            const monthEnd = new Date(monthStart);
+            monthEnd.setMonth(monthEnd.getMonth() + 1, 0);
+            monthEnd.setHours(23, 59, 59, 999);
+
+            const count = await User.countDocuments({
+                createdAt: { $gte: monthStart, $lte: monthEnd }
+            });
+
+            monthlyGrowth.push({
+                month: monthStart.toLocaleDateString('en-US', { month: 'short', year: 'numeric' }),
+                users: count
+            });
+        }
+
+        // Top user locations (if addresses contain city info)
+        // This is a simplified version - in production you'd parse addresses better
+        const userLocations = await User.aggregate([
+            { $match: { address: { $exists: true, $nin: [null, ''] } } },
+            { $group: { _id: '$address', count: { $sum: 1 } } },
+            { $sort: { count: -1 } },
+            { $limit: 5 }
+        ]);
+
+        // Calculate user growth rate
+        const lastMonthUsers = await User.countDocuments({
+            createdAt: { $gte: new Date(Date.now() - 60 * 24 * 60 * 60 * 1000), $lt: thirtyDaysAgo }
+        });
+        const userGrowthRate = lastMonthUsers > 0
+            ? ((recentUsers - lastMonthUsers) / lastMonthUsers) * 100
+            : 0;
 
         res.json({
             totalUsers,
             recentUsers,
-            activeUsers: totalUsers // Placeholder - in production, track active users
+            activeUsers: totalUsers, // In production, track actual active users
+            usersWithPhone,
+            usersWithAddress,
+            firebaseUsers,
+            userGrowthRate: Number(userGrowthRate.toFixed(1)),
+            monthlyGrowth,
+            topLocations: userLocations.map(loc => ({
+                location: loc._id,
+                count: loc.count
+            }))
         });
     } catch (error) {
         console.error('Error fetching user stats:', error);
+        res.status(500).json({ message: 'Server error' });
+    }
+});
+
+// GET /api/users - Get all users (admin only)
+router.get('/', requireAdmin, async (req: Request, res: Response) => {
+    try {
+        const {
+            page = '1',
+            limit = '20',
+            search,
+            role
+        } = req.query;
+
+        const pageNum = parseInt(page as string);
+        const limitNum = parseInt(limit as string);
+        const skip = (pageNum - 1) * limitNum;
+
+        // Build filter query
+        const query: any = {};
+
+        if (role && role !== 'all') {
+            query.role = role;
+        }
+
+        if (search) {
+            query.$or = [
+                { name: { $regex: search, $options: 'i' } },
+                { email: { $regex: search, $options: 'i' } }
+            ];
+        }
+
+        const users = await User.find(query)
+            .sort('-createdAt')
+            .limit(limitNum)
+            .skip(skip)
+            .select('name email role phone address createdAt updatedAt')
+            .lean();
+
+        const total = await User.countDocuments(query);
+
+        res.json({
+            users,
+            total,
+            page: pageNum,
+            pages: Math.ceil(total / limitNum),
+            hasNextPage: pageNum * limitNum < total,
+            hasPrevPage: pageNum > 1
+        });
+    } catch (error) {
+        console.error('Error fetching users:', error);
+        res.status(500).json({ message: 'Server error' });
+    }
+});
+
+// PUT /api/users/:userId/role - Promote user to admin (admin only)
+router.put('/:userId/role', requireAdmin, async (req: Request, res: Response) => {
+    try {
+        const { userId } = req.params;
+        const { role } = req.body;
+
+        if (!['user', 'admin'].includes(role)) {
+            return res.status(400).json({
+                message: 'Invalid role',
+                error: 'Role must be either "user" or "admin"'
+            });
+        }
+
+        const user = await User.findById(userId);
+
+        if (!user) {
+            return res.status(404).json({ message: 'User not found' });
+        }
+
+        user.role = role;
+        await user.save();
+
+        console.log(`👑 User ${user.email} role updated to ${role} by admin ${req.user?.email}`);
+
+        res.json({
+            message: `User role updated to ${role}`,
+            user: {
+                id: user._id,
+                email: user.email,
+                name: user.name,
+                role: user.role
+            }
+        });
+    } catch (error) {
+        console.error('Error updating user role:', error);
         res.status(500).json({ message: 'Server error' });
     }
 });

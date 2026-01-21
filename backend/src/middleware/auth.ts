@@ -1,6 +1,34 @@
 import { Request, Response, NextFunction } from 'express';
 import User from '../models/User';
 
+/**
+ * AUTHENTICATION SETUP FOR PRODUCTION
+ *
+ * Current Setup:
+ * - Development: Allows requests without Firebase auth (with warnings)
+ * - Admin routes: No authentication required (development mode)
+ *
+ * Production Requirements:
+ * 1. Set NODE_ENV=production
+ * 2. Implement Firebase ID token verification
+ * 3. Add admin authentication (API keys, IP whitelist, etc.)
+ * 4. Configure Firebase Admin SDK for token verification
+ *
+ * Example Firebase token verification:
+ * ```typescript
+ * import * as admin from 'firebase-admin';
+ *
+ * const verifyFirebaseToken = async (token: string) => {
+ *   try {
+ *     const decodedToken = await admin.auth().verifyIdToken(token);
+ *     return decodedToken;
+ *   } catch (error) {
+ *     throw new Error('Invalid Firebase token');
+ *   }
+ * };
+ * ```
+ */
+
 // Extend Express Request interface to include user
 declare global {
   namespace Express {
@@ -13,8 +41,9 @@ declare global {
 // Middleware to authenticate Firebase users
 export const authenticateUser = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    // For development: Extract firebaseUid from headers or body
-    // In production, you'd verify Firebase ID tokens
+    const isDevelopment = process.env.NODE_ENV !== 'production';
+
+    // Extract Firebase authentication data
     let firebaseUid = req.headers['x-firebase-uid'] as string;
     let email = req.headers['x-user-email'] as string;
     let name = req.headers['x-user-name'] as string;
@@ -26,10 +55,18 @@ export const authenticateUser = async (req: Request, res: Response, next: NextFu
       name = req.body.name || req.body.userName;
     }
 
-    if (!firebaseUid) {
-      // For now, allow requests without auth for development
-      // In production, return 401
-      console.warn('⚠️ No Firebase UID provided - allowing request for development');
+    // In production, require Firebase authentication
+    if (!isDevelopment && !firebaseUid) {
+      return res.status(401).json({
+        message: 'Authentication required',
+        error: 'Firebase authentication headers missing'
+      });
+    }
+
+    // In development, allow requests but log warnings
+    if (isDevelopment && !firebaseUid) {
+      console.warn('⚠️ Development mode: No Firebase UID provided - allowing request');
+      console.warn('   Consider implementing proper authentication for production');
       return next();
     }
 
@@ -56,7 +93,10 @@ export const authenticateUser = async (req: Request, res: Response, next: NextFu
     next();
   } catch (error) {
     console.error('Authentication error:', error);
-    res.status(401).json({ message: 'Authentication failed' });
+    res.status(401).json({
+      message: 'Authentication failed',
+      error: error instanceof Error ? error.message : 'Unknown authentication error'
+    });
   }
 };
 
@@ -79,31 +119,77 @@ export const optionalAuth = async (req: Request, res: Response, next: NextFuncti
   }
 };
 
-// Admin access middleware (no authentication required for admin app)
+// Admin access middleware - requires Firebase authentication and admin role
 export const requireAdmin = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    // For admin routes, we allow access without authentication
-    // In production, you might want to add IP whitelisting or API keys instead
+    const isDevelopment = process.env.NODE_ENV !== 'production';
 
-    // Create or get admin user for reference
-    let adminUser = await User.findOne({ email: 'admin@sherpamomo.com' });
+    // Extract Firebase authentication data
+    let firebaseUid = req.headers['x-firebase-uid'] as string;
+    let email = req.headers['x-user-email'] as string;
+    let name = req.headers['x-user-name'] as string;
 
-    if (!adminUser) {
-      adminUser = new User({
-        firebaseUid: 'admin-user-123',
-        email: 'admin@sherpamomo.com',
-        name: 'Admin User',
-        phone: '+1234567890'
-      });
-      await adminUser.save();
-      console.log('👑 Created admin user for admin routes');
+    // If not in headers, check body (for API calls that include user info)
+    if (!firebaseUid && req.body && req.body.firebaseUid) {
+      firebaseUid = req.body.firebaseUid;
+      email = req.body.email || req.body.userEmail;
+      name = req.body.name || req.body.userName;
     }
 
-    // Attach admin user to request for consistency
-    req.user = adminUser;
+    // Require authentication for admin routes
+    if (!firebaseUid) {
+      return res.status(401).json({
+        message: 'Admin access requires authentication',
+        error: 'Firebase authentication headers missing'
+      });
+    }
+
+    // Find user in database
+    let user = await User.findOne({ firebaseUid });
+
+    if (!user) {
+      // Create user if they don't exist (for first-time admins)
+      user = new User({
+        firebaseUid,
+        email: email || `${firebaseUid}@firebase.local`,
+        name: name || 'Firebase User',
+        role: 'user' // Default to user, admin promotion needed
+      });
+      await user.save();
+      console.log('👤 Created new user for admin access:', user._id);
+    }
+
+    // Check if user has admin role
+    if (user.role !== 'admin') {
+      // Auto-promote first user to admin for easy setup
+      const adminCount = await User.countDocuments({ role: 'admin' });
+      if (adminCount === 0) {
+        // First user accessing admin routes becomes admin
+        user.role = 'admin';
+        await user.save();
+        console.log(`👑 Auto-promoted first user ${user.email} to admin role`);
+      } else {
+        // In development, allow access but log warning
+        if (isDevelopment) {
+          console.warn(`⚠️ Development mode: User ${user.email} accessing admin routes without admin role`);
+          console.warn('   Consider promoting user to admin role for production');
+        } else {
+          return res.status(403).json({
+            message: 'Admin access denied',
+            error: 'Insufficient permissions - admin role required'
+          });
+        }
+      }
+    }
+
+    // Attach authenticated user to request
+    req.user = user;
     next();
   } catch (error) {
-    console.error('Admin middleware error:', error);
-    res.status(500).json({ message: 'Admin access error' });
+    console.error('Admin authentication error:', error);
+    res.status(500).json({
+      message: 'Admin authentication failed',
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
   }
 };
