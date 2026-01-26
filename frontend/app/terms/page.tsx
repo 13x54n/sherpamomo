@@ -7,18 +7,6 @@ export default function TermsOfServicePage() {
   return (
     <div className="container mx-auto px-4 py-8 min-h-screen">
       <div className="max-w-4xl mx-auto">
-        {/* Header */}
-        <div className="flex items-center gap-4 mb-8">
-          <Link href="/">
-            <Button variant="ghost" size="icon" className="shrink-0">
-              <ArrowLeft className="w-5 h-5" />
-            </Button>
-          </Link>
-          <div>
-            <h1 className="text-4xl font-bold font-heading">Terms of Service</h1>
-            <p className="text-muted-foreground mt-2">Last updated: January 20, 2026</p>
-          </div>
-        </div>
 
         <Card>
           <CardHeader>
@@ -188,9 +176,8 @@ export default function TermsOfServicePage() {
               </p>
               <div className="mt-4 p-4 bg-muted/50 rounded-lg">
                 <p className="text-muted-foreground">
-                  <strong>Email:</strong> legal@sherpamomo.com<br />
-                  <strong>Phone:</strong> +1 (555) 123-MOMO<br />
-                  <strong>Address:</strong> 123 Himalayan Way, Kathmandu, Nepal
+                  <strong>Email:</strong> sherpamomo@outlook.com<br />
+                  <strong>Phone:</strong> +1 416 725 8527<br />
                 </p>
               </div>
             </section>
@@ -203,9 +190,7 @@ export default function TermsOfServicePage() {
             <Link href="/privacy" className="text-primary hover:underline">
               Privacy Policy
             </Link>
-            <Link href="/contact" className="text-primary hover:underline">
-              Contact Us
-            </Link>
+            
             <Link href="/" className="text-primary hover:underline">
               Back to Home
             </Link>

@@ -5,6 +5,7 @@ import Footer from '../components/Footer';
 import { CartProvider } from '@/contexts/cart';
 import { AuthProvider } from '@/contexts/auth';
 import { Toaster } from '@/components/ui/sonner';
+import { Analytics } from "@vercel/analytics/next"
 
 export const metadata: Metadata = {
   title: 'Sherpa Momo - Premium Frozen Himalayan Momos',
@@ -29,6 +30,7 @@ export default function RootLayout({
             <Toaster />
           </CartProvider>
         </AuthProvider>
+        <Analytics/>
       </body>
     </html>
   );

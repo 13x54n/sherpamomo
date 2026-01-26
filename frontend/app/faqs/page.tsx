@@ -8,11 +8,11 @@ export default function FAQsPage() {
     const faqs = [
         {
             question: "What makes Sherpa Momo different from other frozen foods?",
-            answer: "Sherpa Momo offers authentic Himalayan cuisine made with traditional recipes and premium ingredients. Our momos are handmade by skilled artisans using techniques passed down through generations, ensuring the authentic flavors and textures of Nepali and Tibetan cuisine."
+            answer: "Sherpa Momo offers authentic Himalayan cuisine made with traditional recipes and premium ingredients. Our momos are handmade by skilled artisans using techniques passed down through generations, ensuring the authentic flavors and textures of Nepali cuisine."
         },
         {
             question: "How should I cook the frozen momos?",
-            answer: "Our momos are pre-cooked and frozen for convenience. Simply steam them for 8-10 minutes or boil them for 5-7 minutes until heated through. For best results, steam them to preserve the delicate wrapper texture."
+            answer: "Our momos are non-cooked and frozen for convenience. Simply steam them for 15 minutes on boiling water. For best results, steam them to preserve the delicate wrapper texture."
         },
         {
             question: "Are your products gluten-free?",
@@ -40,11 +40,11 @@ export default function FAQsPage() {
         },
         {
             question: "Do you ship internationally?",
-            answer: "Currently, we ship within the United States. International shipping may be available in the future. Please check our shipping page for the most up-to-date information."
+            answer: "Currently, we ship within the GTA, Ontario, Canada. International shipping may be available in the future."
         },
         {
             question: "What are your shipping costs?",
-            answer: "Shipping costs vary based on location and order size. Orders over $50 qualify for free shipping. Standard shipping typically takes 3-5 business days."
+            answer: "Shipping costs vary based on location and order size. Orders over $50 qualify for free shipping. Standard shipping typically takes 1 business days."
         },
         {
             question: "How do I store the products after delivery?",
@@ -59,18 +59,6 @@ export default function FAQsPage() {
     return (
         <div className="container mx-auto px-4 py-8 min-h-screen">
             <div className="max-w-4xl mx-auto">
-                {/* Header */}
-                <div className="flex items-center gap-4 mb-8">
-                    <Link href="/">
-                        <Button variant="ghost" size="icon" className="shrink-0">
-                            <ArrowLeft className="w-5 h-5" />
-                        </Button>
-                    </Link>
-                    <div>
-                        <h1 className="text-4xl font-bold font-heading">Frequently Asked Questions</h1>
-                        <p className="text-muted-foreground mt-2">Everything you need to know about Sherpa Momo</p>
-                    </div>
-                </div>
 
                 {/* Hero Section */}
                 <div className="mb-12">
@@ -101,7 +89,7 @@ export default function FAQsPage() {
                 </div>
 
                 {/* Quick Help Cards */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-16">
+                {/* <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-16">
                     <Card className="text-center">
                         <CardHeader>
                             <Package className="w-8 h-8 text-primary mx-auto mb-2" />
@@ -146,7 +134,7 @@ export default function FAQsPage() {
                             </Button>
                         </CardContent>
                     </Card>
-                </div>
+                </div> */}
 
                 {/* Contact Section */}
                 <div className="text-center bg-primary/5 rounded-2xl p-8">

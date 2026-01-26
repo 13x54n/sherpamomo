@@ -9,14 +9,10 @@ export default function AboutPage() {
             <div className="max-w-4xl mx-auto">
                 {/* Header */}
                 <div className="flex items-center gap-4 mb-8">
-                    <Link href="/">
-                        <Button variant="ghost" size="icon" className="shrink-0">
-                            <ArrowLeft className="w-5 h-5" />
-                        </Button>
-                    </Link>
+                   
                     <div>
                         <h1 className="text-4xl font-bold font-heading">About Sherpa Momo</h1>
-                        <p className="text-muted-foreground mt-2">Authentic Himalayan flavors, frozen with love</p>
+                        <p className="text-muted-foreground mt-2">Authentic Himalayan flavors, frozen with love.</p>
                     </div>
                 </div>
 
@@ -31,7 +27,7 @@ export default function AboutPage() {
                         <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
                         <div className="absolute bottom-8 left-8 text-white">
                             <h2 className="text-3xl font-bold font-heading mb-2">From the Himalayas to Your Table</h2>
-                            <p className="text-lg opacity-90 max-w-md">Bringing authentic Nepali and Tibetan cuisine to food lovers worldwide</p>
+                            <p className="text-lg opacity-90 max-w-md">Bringing authentic Nepali cuisine to food lovers worldwide.</p>
                         </div>
                     </div>
                 </div>
@@ -42,10 +38,10 @@ export default function AboutPage() {
                         <h3 className="text-2xl font-bold font-heading mb-6">Our Story</h3>
                         <div className="space-y-4 text-muted-foreground leading-relaxed">
                             <p>
-                                Founded in 2020, Sherpa Momo began as a dream to share the rich culinary heritage of the Himalayas with the world. Our founders, originally from the mountainous regions of Nepal and Tibet, recognized the need for authentic frozen momos and Himalayan foods that maintained the traditional flavors and quality.
+                                Founded in 2026, Sherpa Momo began as a dream to share the rich culinary heritage of the Himalayas with the world. Our founders, originally from the mountainous regions of Nepal, recognized the need for authentic frozen momos and Himalayan foods that maintained the traditional flavors and quality.
                             </p>
                             <p>
-                                What started as a small kitchen operation has grown into a beloved brand, serving thousands of customers who crave the authentic taste of Himalayan cuisine. Every momo is handmade with traditional recipes passed down through generations, using only the finest ingredients.
+                                We started as a small kitchen operation and has grown into a beloved brand, serving thousands of customers who crave the authentic taste of Himalayan cuisine. Every momo is handmade with traditional recipes passed down through generations, using only the finest ingredients.
                             </p>
                             <p>
                                 We believe that food is more than just sustenance—it's a bridge between cultures, a way to share stories, and a connection to heritage. That's why we're committed to preserving traditional cooking methods while making them accessible to modern households.

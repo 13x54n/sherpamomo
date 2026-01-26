@@ -1,7 +1,6 @@
 "use client";
 
 import Link from 'next/link';
-import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
@@ -100,6 +99,10 @@ export default function CartPage() {
                             <div className="flex justify-between text-muted-foreground">
                                 <span>Shipping</span>
                                 <span>${shipping.toFixed(2)}</span>
+                            </div>
+                            <div className="flex justify-between text-muted-foreground">
+                                <span>Tax</span>
+                                <span>${(subtotal * 0.13).toFixed(2)}</span> {/* 13% tax */}
                             </div>
                             <Separator />
                             <div className="flex justify-between text-lg font-bold">

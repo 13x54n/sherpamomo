@@ -40,7 +40,7 @@ const Footer = () => {
                 <Separator className="my-8" />
 
                 <div className="text-center text-xs text-muted-foreground">
-                    <p>&copy; {new Date().getFullYear()} Sherpa Momo. All rights reserved.</p>
+                    <p>&copy; {new Date().getFullYear()} Sherpa Momo Productions & Factory. All rights reserved.</p>
                 </div>
             </div>
         </footer>

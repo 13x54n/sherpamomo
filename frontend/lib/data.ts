@@ -41,13 +41,13 @@ export const products = [
     {
         id: '4',
         name: 'Pork Momo',
-        description: 'Succulent pork momos with a rich savory filling.',
-        price: 12.49,
+        description: "Elevate your palate with our premium pork momos, where succulent minced pork is masterfully blended with caramelized onions, vibrant coriander, and a whisper of aromatic spices. Steamed to ethereal tenderness, each dumpling unleashes a symphony of rich, savory juices— a true Himalayan delicacy reminiscent of Kathmandu's finest street kitchens.",
+        price: 11.99,
         category: 'Pork',
         image: 'https://images.pexels.com/photos/33670191/pexels-photo-33670191.jpeg',
         rating: 4.7,
         reviewCount: 156,
-        ingredients: ['Minced Pork', 'Onion', 'Coriander', 'Fat', 'Flour', 'Spices'],
+        ingredients: ['Minced Pork', 'Red Onion', 'Spring Onion', 'Corriander', 'Ginger & Garlic', 'Salt & Pepper', 'Vegetable Oil'],
         amount: 10,
         unit: 'pcs'
     },
@@ -102,31 +102,5 @@ export const products = [
         ingredients: ['Tomato', 'Sesame', 'Peanuts', 'Chili', 'Hog Plum'],
         amount: 1,
         unit: 'container'
-    },
-    {
-        id: '9',
-        name: 'Chicken Wings',
-        description: 'Crispy fried chicken wings with a Himalayan twist.',
-        price: 12.49,
-        category: 'Chicken',
-        image: 'https://images.pexels.com/photos/29908653/pexels-photo-29908653.jpeg',
-        rating: 4.4,
-        reviewCount: 28,
-        ingredients: ['Chicken Wings', 'Flour', 'Egg', 'Spices', 'Oil'],
-        amount: 6,
-        unit: 'pcs'
-    },
-    {
-        id: '10',
-        name: 'Drums of Heaven',
-        description: 'Spicy, tangy chicken lollipops.',
-        price: 12.49,
-        category: 'Chicken',
-        image: 'https://images.pexels.com/photos/9609836/pexels-photo-9609836.jpeg',
-        rating: 4.8,
-        reviewCount: 56,
-        ingredients: ['Chicken Wings', 'Ginger', 'Garlic', 'Chili Sauce', 'Soy Sauce'],
-        amount: 6,
-        unit: 'pcs'
     }
 ];

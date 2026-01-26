@@ -6,7 +6,7 @@ import { Product } from '@/types/product';
 import { getProduct } from '@/lib/api/products';
 import { Badge } from '@/components/ui/badge';
 import Link from 'next/link';
-import { ArrowLeft, Star, ChefHat } from 'lucide-react';
+import { Star, ChefHat } from 'lucide-react';
 import ProductInteraction from '@/components/ProductInteraction';
 import ReviewMarquee from '@/components/ReviewMarquee';
 
@@ -83,7 +83,7 @@ export default function ProductPage() {
                 </div>
 
                 {/* Product Details */}
-                <div className="space-y-8">
+                <div className="space-y-6">
                     <div>
                         <div className="flex items-center gap-2 mb-2">
                             <div className="flex items-center text-yellow-500">
@@ -102,12 +102,15 @@ export default function ProductPage() {
                         </p>
                     </div>
 
-                    <p className="text-muted-foreground text-lg leading-relaxed border-l-4 border-primary/20 pl-4">
-                        {product.description}
-                    </p>
+                    <div>
+                        {/* <span className="text-secondary font-semibold">Description:</span> */}
+                        <p className="text-muted-foreground text-lg leading-relaxed ">
+                            {product.description}
+                        </p>
+                    </div>
 
                     {/* Ingredients */}
-                    <div className="bg-secondary/5 rounded-xl p-6">
+                    <div className="bg-secondary/5 rounded-xl">
                         <div className="flex items-center gap-2 mb-4 text-secondary font-semibold">
                             <ChefHat className="w-5 h-5" />
                             <span>Ingredients</span>
@@ -131,8 +134,8 @@ export default function ProductPage() {
                 </div>
             </div>
             {/* Simple Reviews Section */}
-            <div className="border-t border-border pt-4 mt-15">
-                <h3 className="text-2xl font-bold mb-8">Customer Reviews</h3>
+            <div className="border-t border-border pt-4 ">
+                {/* <h3 className="text-2xl font-bold mb-8">Customer Reviews</h3> */}
                 <ReviewMarquee />
             </div>
 

@@ -128,9 +128,6 @@ export default function ProfilePage() {
                   <div>
                     <h3 className="text-xl font-semibold">{user?.name}</h3>
                     <p className="text-muted-foreground">{user?.email}</p>
-                    <Badge variant="secondary" className="mt-2">
-                      Google Account
-                    </Badge>
                   </div>
 
                   <div className="w-full space-y-2 text-sm">
@@ -140,7 +137,9 @@ export default function ProfilePage() {
                     </div>
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">Orders</span>
-                      <span>0</span>
+                      <span>
+                        1{/* i need to get the number of orders from the database and display it here */}
+                      </span>
                     </div>
                   </div>
                 </div>
@@ -224,11 +223,6 @@ export default function ProfilePage() {
                         {formData.phone || 'Not provided'}
                       </p>
                     )}
-                    {formData.phone && (
-                      <p className="text-xs text-muted-foreground">
-                        📱 Set during checkout
-                      </p>
-                    )}
                   </div>
 
                   <div className="space-y-2 md:col-span-2">
@@ -247,11 +241,6 @@ export default function ProfilePage() {
                     ) : (
                       <p className="text-sm py-2 px-3 bg-muted rounded-md min-h-[80px]">
                         {formData.address || 'Not provided'}
-                      </p>
-                    )}
-                    {formData.address && (
-                      <p className="text-xs text-muted-foreground">
-                        📍 Set during checkout
                       </p>
                     )}
                   </div>
