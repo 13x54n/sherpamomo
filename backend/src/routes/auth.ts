@@ -1,4 +1,5 @@
 import express, { Request, Response } from 'express';
+import rateLimit from 'express-rate-limit';
 import PhoneVerification from '../models/PhoneVerification';
 import User from '../models/User';
 import {
@@ -14,8 +15,24 @@ const CODE_TTL_MS = 5 * 60 * 1000;
 const RESEND_COOLDOWN_MS = 30 * 1000;
 const MAX_ATTEMPTS = 5;
 
+const requestLimiter = rateLimit({
+  windowMs: 10 * 60 * 1000,
+  limit: 5,
+  standardHeaders: 'draft-7',
+  legacyHeaders: false,
+  message: { message: 'Too many code requests. Please try again later.' }
+});
+
+const verifyLimiter = rateLimit({
+  windowMs: 10 * 60 * 1000,
+  limit: 10,
+  standardHeaders: 'draft-7',
+  legacyHeaders: false,
+  message: { message: 'Too many verification attempts. Please try again later.' }
+});
+
 // POST /api/auth/phone/request - send verification code
-router.post('/phone/request', async (req: Request, res: Response) => {
+router.post('/phone/request', requestLimiter, async (req: Request, res: Response) => {
   try {
     const rawPhone = String(req.body?.phone || '');
     const phone = normalizeCanadianPhone(rawPhone);
@@ -72,7 +89,7 @@ router.post('/phone/request', async (req: Request, res: Response) => {
 });
 
 // POST /api/auth/phone/verify - verify code and issue token
-router.post('/phone/verify', async (req: Request, res: Response) => {
+router.post('/phone/verify', verifyLimiter, async (req: Request, res: Response) => {
   try {
     const rawPhone = String(req.body?.phone || '');
     const code = String(req.body?.code || '').trim();
