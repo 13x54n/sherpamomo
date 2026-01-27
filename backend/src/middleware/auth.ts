@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import User from '../models/User';
+import { verifyAuthToken } from '../utils/auth';
 
 /**
  * AUTHENTICATION SETUP FOR PRODUCTION
@@ -43,6 +44,29 @@ export const authenticateUser = async (req: Request, res: Response, next: NextFu
   try {
     const isDevelopment = process.env.NODE_ENV !== 'production';
 
+    const authHeader = req.headers.authorization;
+    const bearerToken = authHeader?.startsWith('Bearer ') ? authHeader.slice(7).trim() : undefined;
+
+    if (bearerToken) {
+      try {
+        const decoded = verifyAuthToken(bearerToken);
+        const user = await User.findById(decoded.sub);
+        if (!user) {
+          return res.status(401).json({
+            message: 'Authentication required',
+            error: 'Invalid token user'
+          });
+        }
+        req.user = user;
+        return next();
+      } catch (error) {
+        return res.status(401).json({
+          message: 'Authentication required',
+          error: 'Invalid auth token'
+        });
+      }
+    }
+
     // Extract Firebase authentication data
     let firebaseUid = req.headers['x-firebase-uid'] as string;
     let email = req.headers['x-user-email'] as string;
@@ -79,6 +103,7 @@ export const authenticateUser = async (req: Request, res: Response, next: NextFu
         firebaseUid,
         email: email || `${firebaseUid}@firebase.local`,
         name: name || 'Firebase User',
+        authProvider: 'firebase'
       });
       await user.save();
       console.log('👤 Created new user record:', user._id);
@@ -103,6 +128,22 @@ export const authenticateUser = async (req: Request, res: Response, next: NextFu
 // Optional authentication (doesn't fail if no user)
 export const optionalAuth = async (req: Request, res: Response, next: NextFunction) => {
   try {
+    const authHeader = req.headers.authorization;
+    const bearerToken = authHeader?.startsWith('Bearer ') ? authHeader.slice(7).trim() : undefined;
+
+    if (bearerToken) {
+      try {
+        const decoded = verifyAuthToken(bearerToken);
+        const user = await User.findById(decoded.sub);
+        if (user) {
+          req.user = user;
+        }
+        return next();
+      } catch (error) {
+        return next();
+      }
+    }
+
     const firebaseUid = req.headers['x-firebase-uid'] as string;
 
     if (firebaseUid) {
@@ -123,6 +164,41 @@ export const optionalAuth = async (req: Request, res: Response, next: NextFuncti
 export const requireAdmin = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const isDevelopment = process.env.NODE_ENV !== 'production';
+
+    const authHeader = req.headers.authorization;
+    const bearerToken = authHeader?.startsWith('Bearer ') ? authHeader.slice(7).trim() : undefined;
+
+    if (bearerToken) {
+      try {
+        const decoded = verifyAuthToken(bearerToken);
+        const user = await User.findById(decoded.sub);
+        if (!user) {
+          return res.status(401).json({
+            message: 'Admin access requires authentication',
+            error: 'Invalid token user'
+          });
+        }
+
+        if (user.role !== 'admin') {
+          if (isDevelopment) {
+            console.warn(`⚠️ Development mode: User ${user._id} accessing admin routes without admin role`);
+          } else {
+            return res.status(403).json({
+              message: 'Admin access denied',
+              error: 'Insufficient permissions - admin role required'
+            });
+          }
+        }
+
+        req.user = user;
+        return next();
+      } catch (error) {
+        return res.status(401).json({
+          message: 'Admin access requires authentication',
+          error: 'Invalid auth token'
+        });
+      }
+    }
 
     // Extract Firebase authentication data
     let firebaseUid = req.headers['x-firebase-uid'] as string;
@@ -153,7 +229,8 @@ export const requireAdmin = async (req: Request, res: Response, next: NextFuncti
         firebaseUid,
         email: email || `${firebaseUid}@firebase.local`,
         name: name || 'Firebase User',
-        role: 'user' // Default to user, admin promotion needed
+        role: 'user', // Default to user, admin promotion needed
+        authProvider: 'firebase'
       });
       await user.save();
       console.log('👤 Created new user for admin access:', user._id);

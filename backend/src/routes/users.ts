@@ -9,13 +9,21 @@ router.put('/profile', async (req: Request, res: Response) => {
     try {
         const { firebaseUid, phone, address, name, email } = req.body;
 
-        if (!firebaseUid) {
-            return res.status(400).json({ message: 'Firebase UID is required' });
+        const selector = req.user?._id
+            ? { _id: req.user._id }
+            : firebaseUid
+                ? { firebaseUid }
+                : phone
+                    ? { phone }
+                    : null;
+
+        if (!selector) {
+            return res.status(400).json({ message: 'User identifier is required' });
         }
 
         // Find and update user profile
         const user = await User.findOneAndUpdate(
-            { firebaseUid },
+            selector,
             {
                 $set: {
                     ...(phone !== undefined && { phone }),
@@ -42,6 +50,7 @@ router.put('/profile', async (req: Request, res: Response) => {
                 name: user.name,
                 phone: user.phone,
                 address: user.address,
+                authProvider: user.authProvider,
                 createdAt: user.createdAt,
                 updatedAt: user.updatedAt
             }
@@ -70,11 +79,42 @@ router.get('/profile/:firebaseUid', async (req: Request, res: Response) => {
             name: user.name,
             phone: user.phone,
             address: user.address,
+            authProvider: user.authProvider,
             createdAt: user.createdAt,
             updatedAt: user.updatedAt
         });
     } catch (error) {
         console.error('Error fetching user profile:', error);
+        res.status(500).json({ message: 'Server error' });
+    }
+});
+
+// GET /api/users/me - Get authenticated user profile
+router.get('/me', async (req: Request, res: Response) => {
+    try {
+        if (!req.user) {
+            return res.status(401).json({ message: 'Authentication required' });
+        }
+
+        const user = await User.findById(req.user._id);
+
+        if (!user) {
+            return res.status(404).json({ message: 'User profile not found' });
+        }
+
+        res.json({
+            id: user._id,
+            firebaseUid: user.firebaseUid,
+            email: user.email,
+            name: user.name,
+            phone: user.phone,
+            address: user.address,
+            authProvider: user.authProvider,
+            createdAt: user.createdAt,
+            updatedAt: user.updatedAt
+        });
+    } catch (error) {
+        console.error('Error fetching current user profile:', error);
         res.status(500).json({ message: 'Server error' });
     }
 });
@@ -100,9 +140,12 @@ router.get('/stats', async (req: Request, res: Response) => {
             address: { $exists: true, $nin: [null, ''] }
         });
 
-        // Users by authentication method (firebase vs others)
+        // Users by authentication method
         const firebaseUsers = await User.countDocuments({
-            firebaseUid: { $exists: true, $ne: null }
+            authProvider: 'firebase'
+        });
+        const phoneUsers = await User.countDocuments({
+            authProvider: 'phone'
         });
 
         // Monthly user growth (last 6 months)
@@ -150,6 +193,7 @@ router.get('/stats', async (req: Request, res: Response) => {
             usersWithPhone,
             usersWithAddress,
             firebaseUsers,
+            phoneUsers,
             userGrowthRate: Number(userGrowthRate.toFixed(1)),
             monthlyGrowth,
             topLocations: userLocations.map(loc => ({
