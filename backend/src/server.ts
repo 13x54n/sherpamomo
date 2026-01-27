@@ -5,6 +5,7 @@ import connectDB from './config/database';
 import productRoutes from './routes/products';
 import orderRoutes from './routes/orders';
 import userRoutes from './routes/users';
+import authRoutes from './routes/auth';
 import { authenticateUser, optionalAuth } from './middleware/auth';
 
 dotenv.config();
@@ -35,6 +36,7 @@ app.get('/api/health', (req, res) => {
 });
 
 // API Routes
+app.use('/api/auth', authRoutes);
 app.use('/api/products', productRoutes);
 app.use('/api/orders', orderRoutes);
 app.use('/api/users', authenticateUser, userRoutes);
