@@ -2,34 +2,6 @@ import { Request, Response, NextFunction } from 'express';
 import User from '../models/User';
 import { verifyAuthToken } from '../utils/auth';
 
-/**
- * AUTHENTICATION SETUP FOR PRODUCTION
- *
- * Current Setup:
- * - Development: Allows requests without Firebase auth (with warnings)
- * - Admin routes: No authentication required (development mode)
- *
- * Production Requirements:
- * 1. Set NODE_ENV=production
- * 2. Implement Firebase ID token verification
- * 3. Add admin authentication (API keys, IP whitelist, etc.)
- * 4. Configure Firebase Admin SDK for token verification
- *
- * Example Firebase token verification:
- * ```typescript
- * import * as admin from 'firebase-admin';
- *
- * const verifyFirebaseToken = async (token: string) => {
- *   try {
- *     const decodedToken = await admin.auth().verifyIdToken(token);
- *     return decodedToken;
- *   } catch (error) {
- *     throw new Error('Invalid Firebase token');
- *   }
- * };
- * ```
- */
-
 // Extend Express Request interface to include user
 declare global {
   namespace Express {
@@ -39,22 +11,26 @@ declare global {
   }
 }
 
-// Middleware to authenticate Firebase users
+// Middleware to authenticate users via JWT
 export const authenticateUser = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const isDevelopment = process.env.NODE_ENV !== 'production';
 
+    // Extract Bearer token
     const authHeader = req.headers.authorization;
-    const bearerToken = authHeader?.startsWith('Bearer ') ? authHeader.slice(7).trim() : undefined;
+    const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7).trim() : undefined;
 
-    if (bearerToken) {
+    // Also check legacy Firebase headers for web frontend compatibility
+    const legacyFirebaseUid = req.headers['x-firebase-uid'] as string;
+
+    if (token) {
       try {
-        const decoded = verifyAuthToken(bearerToken);
+        const decoded = verifyAuthToken(token);
         const user = await User.findById(decoded.sub);
         if (!user) {
           return res.status(401).json({
             message: 'Authentication required',
-            error: 'Invalid token user'
+            error: 'User not found'
           });
         }
         req.user = user;
@@ -62,211 +38,143 @@ export const authenticateUser = async (req: Request, res: Response, next: NextFu
       } catch (error) {
         return res.status(401).json({
           message: 'Authentication required',
-          error: 'Invalid auth token'
+          error: 'Invalid token'
         });
       }
     }
 
-    // Extract Firebase authentication data
-    let firebaseUid = req.headers['x-firebase-uid'] as string;
-    let email = req.headers['x-user-email'] as string;
-    let name = req.headers['x-user-name'] as string;
+    // Legacy header-based auth (for web frontend with Firebase)
+    if (legacyFirebaseUid) {
+      const email = req.headers['x-user-email'] as string;
+      const name = req.headers['x-user-name'] as string;
 
-    // If not in headers, check body (for API calls that include user info)
-    if (!firebaseUid && req.body && req.body.firebaseUid) {
-      firebaseUid = req.body.firebaseUid;
-      email = req.body.email || req.body.userEmail;
-      name = req.body.name || req.body.userName;
-    }
+      let user = await User.findOne({ firebaseUid: legacyFirebaseUid });
 
-    // In production, require Firebase authentication
-    if (!isDevelopment && !firebaseUid) {
-      return res.status(401).json({
-        message: 'Authentication required',
-        error: 'Firebase authentication headers missing'
-      });
-    }
+      if (!user) {
+        user = new User({
+          firebaseUid: legacyFirebaseUid,
+          email: email || `${legacyFirebaseUid}@firebase.local`,
+          name: name || 'User',
+          authProvider: 'firebase'
+        });
+        await user.save();
+      }
 
-    // In development, allow requests but log warnings
-    if (isDevelopment && !firebaseUid) {
-      console.warn('⚠️ Development mode: No Firebase UID provided - allowing request');
-      console.warn('   Consider implementing proper authentication for production');
+      req.user = user;
       return next();
     }
 
-    // Find or create user in database
-    let user = await User.findOne({ firebaseUid });
-
-    if (!user) {
-      // Create new user record
-      user = new User({
-        firebaseUid,
-        email: email || `${firebaseUid}@firebase.local`,
-        name: name || 'Firebase User',
-        authProvider: 'firebase'
-      });
-      await user.save();
-      console.log('👤 Created new user record:', user._id);
-    } else if (email && user.email !== email) {
-      // Update email if it changed
-      user.email = email;
-      await user.save();
+    // Development mode: allow requests without auth
+    if (isDevelopment) {
+      console.warn('⚠️ Dev mode: No auth provided');
+      return next();
     }
 
-    // Attach user to request
-    req.user = user;
-    next();
+    return res.status(401).json({
+      message: 'Authentication required',
+      error: 'No valid token provided'
+    });
+
   } catch (error) {
-    console.error('Authentication error:', error);
+    console.error('Auth error:', error);
     res.status(401).json({
       message: 'Authentication failed',
-      error: error instanceof Error ? error.message : 'Unknown authentication error'
+      error: error instanceof Error ? error.message : 'Unknown error'
     });
   }
 };
 
-// Optional authentication (doesn't fail if no user)
+// Optional authentication
 export const optionalAuth = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const authHeader = req.headers.authorization;
-    const bearerToken = authHeader?.startsWith('Bearer ') ? authHeader.slice(7).trim() : undefined;
+    const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7).trim() : undefined;
+    const legacyFirebaseUid = req.headers['x-firebase-uid'] as string;
 
-    if (bearerToken) {
+    if (token) {
       try {
-        const decoded = verifyAuthToken(bearerToken);
+        const decoded = verifyAuthToken(token);
         const user = await User.findById(decoded.sub);
-        if (user) {
-          req.user = user;
-        }
-        return next();
-      } catch (error) {
-        return next();
+        if (user) req.user = user;
+      } catch {
+        // Ignore invalid tokens for optional auth
       }
-    }
-
-    const firebaseUid = req.headers['x-firebase-uid'] as string;
-
-    if (firebaseUid) {
-      const user = await User.findOne({ firebaseUid });
-      if (user) {
-        req.user = user;
-      }
+    } else if (legacyFirebaseUid) {
+      const user = await User.findOne({ firebaseUid: legacyFirebaseUid });
+      if (user) req.user = user;
     }
 
     next();
   } catch (error) {
-    console.error('Optional auth error:', error);
-    next(); // Don't fail the request
+    next();
   }
 };
 
-// Admin access middleware - requires Firebase authentication and admin role
+// Admin access middleware
 export const requireAdmin = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const isDevelopment = process.env.NODE_ENV !== 'production';
 
     const authHeader = req.headers.authorization;
-    const bearerToken = authHeader?.startsWith('Bearer ') ? authHeader.slice(7).trim() : undefined;
+    const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7).trim() : undefined;
+    const legacyFirebaseUid = req.headers['x-firebase-uid'] as string;
 
-    if (bearerToken) {
+    let user = null;
+
+    if (token) {
       try {
-        const decoded = verifyAuthToken(bearerToken);
-        const user = await User.findById(decoded.sub);
-        if (!user) {
-          return res.status(401).json({
-            message: 'Admin access requires authentication',
-            error: 'Invalid token user'
-          });
-        }
-
-        if (user.role !== 'admin') {
-          if (isDevelopment) {
-            console.warn(`⚠️ Development mode: User ${user._id} accessing admin routes without admin role`);
-          } else {
-            return res.status(403).json({
-              message: 'Admin access denied',
-              error: 'Insufficient permissions - admin role required'
-            });
-          }
-        }
-
-        req.user = user;
-        return next();
-      } catch (error) {
+        const decoded = verifyAuthToken(token);
+        user = await User.findById(decoded.sub);
+      } catch {
         return res.status(401).json({
           message: 'Admin access requires authentication',
-          error: 'Invalid auth token'
+          error: 'Invalid token'
         });
       }
-    }
+    } else if (legacyFirebaseUid) {
+      const email = req.headers['x-user-email'] as string;
+      const name = req.headers['x-user-name'] as string;
 
-    // Extract Firebase authentication data
-    let firebaseUid = req.headers['x-firebase-uid'] as string;
-    let email = req.headers['x-user-email'] as string;
-    let name = req.headers['x-user-name'] as string;
+      user = await User.findOne({ firebaseUid: legacyFirebaseUid });
 
-    // If not in headers, check body (for API calls that include user info)
-    if (!firebaseUid && req.body && req.body.firebaseUid) {
-      firebaseUid = req.body.firebaseUid;
-      email = req.body.email || req.body.userEmail;
-      name = req.body.name || req.body.userName;
-    }
-
-    // Require authentication for admin routes
-    if (!firebaseUid) {
-      return res.status(401).json({
-        message: 'Admin access requires authentication',
-        error: 'Firebase authentication headers missing'
-      });
-    }
-
-    // Find user in database
-    let user = await User.findOne({ firebaseUid });
-
-    if (!user) {
-      // Create user if they don't exist (for first-time admins)
-      user = new User({
-        firebaseUid,
-        email: email || `${firebaseUid}@firebase.local`,
-        name: name || 'Firebase User',
-        role: 'user', // Default to user, admin promotion needed
-        authProvider: 'firebase'
-      });
-      await user.save();
-      console.log('👤 Created new user for admin access:', user._id);
-    }
-
-    // Check if user has admin role
-    if (user.role !== 'admin') {
-      // Auto-promote first user to admin for easy setup
-      const adminCount = await User.countDocuments({ role: 'admin' });
-      if (adminCount === 0) {
-        // First user accessing admin routes becomes admin
-        user.role = 'admin';
+      if (!user) {
+        user = new User({
+          firebaseUid: legacyFirebaseUid,
+          email: email || `${legacyFirebaseUid}@firebase.local`,
+          name: name || 'User',
+          role: 'user',
+          authProvider: 'firebase'
+        });
         await user.save();
-        console.log(`👑 Auto-promoted first user ${user.email} to admin role`);
-      } else {
-        // In development, allow access but log warning
-        if (isDevelopment) {
-          console.warn(`⚠️ Development mode: User ${user.email} accessing admin routes without admin role`);
-          console.warn('   Consider promoting user to admin role for production');
-        } else {
-          return res.status(403).json({
-            message: 'Admin access denied',
-            error: 'Insufficient permissions - admin role required'
-          });
-        }
       }
     }
 
-    // Attach authenticated user to request
+    if (!user) {
+      return res.status(401).json({
+        message: 'Admin access requires authentication'
+      });
+    }
+
+    // Check admin role
+    if (user.role !== 'admin') {
+      const adminCount = await User.countDocuments({ role: 'admin' });
+      if (adminCount === 0) {
+        user.role = 'admin';
+        await user.save();
+        console.log(`👑 Auto-promoted first user to admin: ${user._id}`);
+      } else if (!isDevelopment) {
+        return res.status(403).json({
+          message: 'Admin access denied'
+        });
+      } else {
+        console.warn(`⚠️ Dev mode: Non-admin accessing admin route`);
+      }
+    }
+
     req.user = user;
     next();
   } catch (error) {
-    console.error('Admin authentication error:', error);
-    res.status(500).json({
-      message: 'Admin authentication failed',
-      error: error instanceof Error ? error.message : 'Unknown error'
-    });
+    console.error('Admin auth error:', error);
+    res.status(500).json({ message: 'Admin auth failed' });
   }
 };

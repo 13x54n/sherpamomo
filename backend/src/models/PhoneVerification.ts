@@ -9,32 +9,12 @@ export interface IPhoneVerification extends Document {
 }
 
 const PhoneVerificationSchema = new Schema<IPhoneVerification>({
-  phone: {
-    type: String,
-    required: true,
-    index: true
-  },
-  codeHash: {
-    type: String,
-    required: true
-  },
-  expiresAt: {
-    type: Date,
-    required: true,
-    index: true,
-    expires: 0
-  },
-  attempts: {
-    type: Number,
-    default: 0
-  },
-  requestedAt: {
-    type: Date,
-    required: true
-  }
-}, {
-  timestamps: true
-});
+  phone: { type: String, required: true, index: true },
+  codeHash: { type: String, required: true },
+  expiresAt: { type: Date, required: true, index: true, expires: 0 },
+  attempts: { type: Number, default: 0 },
+  requestedAt: { type: Date, required: true }
+}, { timestamps: true });
 
 PhoneVerificationSchema.index({ phone: 1, expiresAt: 1 });
 
