@@ -18,9 +18,7 @@ router.get('/stats', requireAdmin, async (req: Request, res: Response) => {
 
         // Order status counts
         const pendingOrders = await Order.countDocuments({ status: 'pending' });
-        const confirmedOrders = await Order.countDocuments({ status: 'confirmed' });
-        const preparingOrders = await Order.countDocuments({ status: 'preparing' });
-        const readyOrders = await Order.countDocuments({ status: 'ready' });
+        const packagingOrders = await Order.countDocuments({ status: 'packaging' });
         const deliveredOrders = await Order.countDocuments({ status: 'delivered' });
         const cancelledOrders = await Order.countDocuments({ status: 'cancelled' });
         const completedOrders = await Order.countDocuments({ status: 'completed' });
@@ -91,9 +89,7 @@ router.get('/stats', requireAdmin, async (req: Request, res: Response) => {
             deliveredToday,
             orderStats: {
                 pending: pendingOrders,
-                confirmed: confirmedOrders,
-                preparing: preparingOrders,
-                ready: readyOrders,
+                packaging: packagingOrders,
                 delivered: deliveredOrders,
                 cancelled: cancelledOrders,
                 completed: completedOrders,
@@ -277,7 +273,7 @@ router.put('/:orderId/status', async (req: Request, res: Response) => {
     try {
         const { status } = req.body;
 
-        if (!['pending', 'confirmed', 'preparing', 'ready', 'delivered', 'cancelled', 'completed', 'failed'].includes(status)) {
+        if (!['pending', 'packaging', 'delivered', 'cancelled', 'completed', 'failed'].includes(status)) {
             return res.status(400).json({ message: 'Invalid status' });
         }
 
@@ -308,7 +304,7 @@ router.put('/:orderId/cancel', async (req: Request, res: Response) => {
         }
 
         // Only allow cancellation for certain statuses
-        if (!['pending', 'confirmed', 'preparing'].includes(order.status)) {
+        if (!['pending', 'packaging'].includes(order.status)) {
             return res.status(400).json({
                 message: 'Order cannot be cancelled at this stage'
             });
