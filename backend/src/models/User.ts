@@ -17,7 +17,9 @@ const UserSchema = new Schema<IUser>({
     type: String,
     unique: true,
     sparse: true,
-    index: true
+    index: true,
+    default: undefined,
+    set: (v: string | null | undefined) => (v == null || v === '' ? undefined : v),
   },
   email: {
     type: String,
@@ -54,6 +56,16 @@ const UserSchema = new Schema<IUser>({
   timestamps: true,
   toJSON: { virtuals: true },
   toObject: { virtuals: true }
+});
+
+// Avoid storing firebaseUid: null so sparse unique index allows multiple phone-only users (no firebaseUid).
+// If you still see E11000 dup key: { firebaseUid: null }, run once in MongoDB:
+//   db.users.updateMany({ firebaseUid: null }, { $unset: { firebaseUid: "" } })
+//   db.users.dropIndex("firebaseUid_1")  // Mongoose will recreate it on next start
+UserSchema.pre('save', function () {
+  if (this.firebaseUid == null || this.firebaseUid === '') {
+    this.firebaseUid = undefined;
+  }
 });
 
 // Index for faster lookups (email already indexed by unique constraint)

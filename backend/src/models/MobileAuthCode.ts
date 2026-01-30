@@ -17,6 +17,6 @@ const MobileAuthCodeSchema = new Schema<IMobileAuthCode>(
 );
 
 MobileAuthCodeSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 }); // TTL index: remove doc when expiresAt passes
-MobileAuthCodeSchema.index({ code: 1 });
+// code already has unique: true on the field, which creates the index
 
 export default mongoose.model<IMobileAuthCode>('MobileAuthCode', MobileAuthCodeSchema);

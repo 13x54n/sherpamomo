@@ -200,12 +200,7 @@ export default function SignInScreen() {
         {/* Form Section */}
         <View style={styles.formSection}>
           <Text style={styles.title}>
-            {step === "phone" ? "Welcome" : "Verify"}
-          </Text>
-          <Text style={styles.subtitle}>
-            {step === "phone"
-              ? "Enter your phone number to get started."
-              : "Enter the OTP to verify your account."}
+            {step === "phone" ? "Welcome to Sherpa Momo." : "Verify your account."}
           </Text>
 
           {error && (
@@ -217,6 +212,36 @@ export default function SignInScreen() {
 
           {step === "phone" ? (
             <>
+              <Pressable
+                style={({ pressed }) => [
+                  styles.googleButton,
+                  styles.googleButtonPrimary,
+                  pressed && styles.googleButtonPrimaryPressed,
+                  googleLoading && styles.googleButtonDisabled,
+                ]}
+                onPress={handleGoogleSignIn}
+                disabled={googleLoading}
+              >
+                {googleLoading ? (
+                  <ActivityIndicator size="small" color={colors.background} />
+                ) : (
+                  <Ionicons name="logo-google" size={20} color={colors.background} />
+                )}
+                <Text style={styles.googleButtonPrimaryText}>
+                  {googleLoading ? "Signing in…" : "Sign in with Google"}
+                </Text>
+              </Pressable>
+
+              <View style={styles.orRow}>
+                <View style={styles.orLine} />
+                <Text style={styles.orText}>or</Text>
+                <View style={styles.orLine} />
+              </View>
+              <Text style={styles.subtitle}>
+            {step === "phone"
+              ? "Enter your phone number to get started."
+              : "Enter the OTP to verify your account."}
+          </Text>
               <View style={styles.inputContainer}>
                 <Text style={styles.inputPrefix}>+1</Text>
                 <TextInput
@@ -229,52 +254,30 @@ export default function SignInScreen() {
                   autoComplete="tel"
                 />
               </View>
-              <Pressable
-                style={({ pressed }) => [
-                  styles.button,
-                  pressed && styles.buttonPressed,
-                  loading && styles.buttonDisabled,
-                ]}
-                onPress={requestCode}
-                disabled={loading}
-              >
-                {loading ? (
-                  <ActivityIndicator color={colors.background} />
-                ) : (
-                  <>
-                    <Text style={styles.buttonText}>Continue</Text>
-                    <Ionicons
-                      name="arrow-forward"
-                      size={20}
-                      color={colors.background}
-                    />
-                  </>
-                )}
-              </Pressable>
-
-              <View style={styles.orRow}>
-                <View style={styles.orLine} />
-                <Text style={styles.orText}>or</Text>
-                <View style={styles.orLine} />
-              </View>
-              <Pressable
-                style={({ pressed }) => [
-                  styles.googleButton,
-                  pressed && styles.googleButtonPressed,
-                  googleLoading && styles.googleButtonDisabled,
-                ]}
-                onPress={handleGoogleSignIn}
-                disabled={googleLoading}
-              >
-                {googleLoading ? (
-                  <ActivityIndicator size="small" color={colors.textPrimary} />
-                ) : (
-                  <Ionicons name="logo-google" size={20} color={colors.textPrimary} />
-                )}
-                <Text style={styles.googleButtonText}>
-                  {googleLoading ? "Signing in…" : "Sign in with Google"}
-                </Text>
-              </Pressable>
+              {!!normalizePhoneNumber(phone) && (
+                <Pressable
+                  style={({ pressed }) => [
+                    styles.button,
+                    pressed && styles.buttonPressed,
+                    loading && styles.buttonDisabled,
+                  ]}
+                  onPress={requestCode}
+                  disabled={loading}
+                >
+                  {loading ? (
+                    <ActivityIndicator color={colors.background} />
+                  ) : (
+                    <>
+                      <Text style={styles.buttonText}>Continue</Text>
+                      <Ionicons
+                        name="arrow-forward"
+                        size={20}
+                        color={colors.background}
+                      />
+                    </>
+                  )}
+                </Pressable>
+              )}
             </>
           ) : (
             <>
@@ -366,7 +369,7 @@ const styles = StyleSheet.create({
   title: {
     ...typography.h2,
     color: colors.textPrimary,
-    marginBottom: spacing.xs,
+    marginBottom: spacing.xl,
     textAlign: "center",
   },
   subtitle: {
@@ -488,6 +491,13 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
     gap: spacing.sm,
   },
+  googleButtonPrimary: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
+  },
+  googleButtonPrimaryPressed: {
+    backgroundColor: colors.primaryDark,
+  },
   googleButtonPressed: {
     backgroundColor: colors.surfaceElevated,
   },
@@ -498,6 +508,11 @@ const styles = StyleSheet.create({
     ...typography.body,
     color: colors.textPrimary,
     fontWeight: "600",
+  },
+  googleButtonPrimaryText: {
+    ...typography.body,
+    color: colors.background,
+    fontWeight: "700",
   },
   footer: {
     ...typography.caption,

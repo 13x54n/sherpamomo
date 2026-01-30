@@ -1,32 +1,32 @@
-// Dark E-commerce Theme
+// Light (white) e-commerce theme
 export const colors = {
   // Background colors
-  background: "#0a0a0a",
-  surface: "#141414",
-  surfaceElevated: "#1a1a1a",
-  
-  // Primary accent (warm amber/gold)
-  primary: "#f59e0b",
-  primaryDark: "#d97706",
-  primaryLight: "#fbbf24",
-  
+  background: "#ffffff",
+  surface: "#f8f9fa",
+  surfaceElevated: "#f1f3f5",
+
+  // Primary (black buttons)
+  primary: "#000000",
+  primaryDark: "#1a1a1a",
+  primaryLight: "#262626",
+
   // Text colors
-  textPrimary: "#ffffff",
-  textSecondary: "#a1a1aa",
-  textMuted: "#71717a",
-  
+  textPrimary: "#111827",
+  textSecondary: "#4b5563",
+  textMuted: "#6b7280",
+
   // Border colors
-  border: "#27272a",
-  borderLight: "#3f3f46",
-  
+  border: "#e5e7eb",
+  borderLight: "#f3f4f6",
+
   // Status colors
   success: "#22c55e",
   error: "#ef4444",
   warning: "#f59e0b",
   info: "#3b82f6",
-  
+
   // Overlay
-  overlay: "rgba(0, 0, 0, 0.5)",
+  overlay: "rgba(0, 0, 0, 0.4)",
 };
 
 export const spacing = {

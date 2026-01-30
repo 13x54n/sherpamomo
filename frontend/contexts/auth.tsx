@@ -1,7 +1,14 @@
 'use client';
 
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { signInWithPopup, signOut as firebaseSignOut, onAuthStateChanged, User as FirebaseUser } from 'firebase/auth';
+import {
+  signInWithPopup,
+  signInWithRedirect,
+  getRedirectResult,
+  signOut as firebaseSignOut,
+  onAuthStateChanged,
+  User as FirebaseUser,
+} from 'firebase/auth';
 import { auth, googleProvider } from '@/lib/firebase';
 
 interface AppUser {
@@ -9,44 +16,53 @@ interface AppUser {
   name: string | null;
   email: string | null;
   photoURL?: string | null;
-  // Add more user fields as needed
 }
 
 interface AuthContextValue {
   user: AppUser | null;
   isAuthenticated: boolean;
   isLoading: boolean;
-  signIn: () => Promise<{ success: boolean; message: string }>;
+  signIn: (options?: { useRedirect?: boolean }) => Promise<{ success: boolean; message: string }>;
   signUp: (name: string, email: string, password: string) => Promise<{ success: boolean; message: string }>;
   signOut: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
-// Firebase handles user authentication
+function firebaseUserToAppUser(firebaseUser: FirebaseUser): AppUser {
+  return {
+    id: firebaseUser.uid,
+    name: firebaseUser.displayName,
+    email: firebaseUser.email,
+    photoURL: firebaseUser.photoURL,
+  };
+}
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<AppUser | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Listen to Firebase auth state changes
   useEffect(() => {
+    // Consume redirect result (required when using signInWithRedirect, e.g. in-app browser from mobile)
+    getRedirectResult(auth).catch((err) => {
+      if (err?.code !== 'auth/popup-closed-by-user') console.error('Redirect result error:', err);
+    });
+
     const unsubscribe = onAuthStateChanged(auth, (firebaseUser: FirebaseUser | null) => {
       if (firebaseUser) {
-        // User is signed in
-        const userData: AppUser = {
-          id: firebaseUser.uid,
-          name: firebaseUser.displayName,
-          email: firebaseUser.email,
-          photoURL: firebaseUser.photoURL
-        };
-        setUser(userData);
-        // Store in localStorage for persistence
-        localStorage.setItem('sherpamomo_user', JSON.stringify(userData));
+        setUser(firebaseUserToAppUser(firebaseUser));
+        try {
+          localStorage.setItem('sherpamomo_user', JSON.stringify(firebaseUserToAppUser(firebaseUser)));
+        } catch {
+          // ignore when storage is restricted
+        }
       } else {
-        // User is signed out
         setUser(null);
-        localStorage.removeItem('sherpamomo_user');
+        try {
+          localStorage.removeItem('sherpamomo_user');
+        } catch {
+          // ignore
+        }
       }
       setIsLoading(false);
     });
@@ -54,29 +70,32 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => unsubscribe();
   }, []);
 
-  const signIn = async (): Promise<{ success: boolean; message: string }> => {
+  const signIn = async (options?: { useRedirect?: boolean }): Promise<{ success: boolean; message: string }> => {
+    const useRedirect = options?.useRedirect === true;
+
+    if (useRedirect) {
+      try {
+        await signInWithRedirect(auth, googleProvider);
+        return { success: true, message: 'Redirecting to Google…' };
+      } catch (error: any) {
+        console.error('Google sign-in redirect error:', error);
+        return {
+          success: false,
+          message: error?.message || 'Redirect sign-in failed. Try again.',
+        };
+      }
+    }
+
     setIsLoading(true);
-
     try {
-      const result = await signInWithPopup(auth, googleProvider);
-
-      // Firebase handles the authentication automatically
-      // The onAuthStateChanged listener will update the user state
-
+      await signInWithPopup(auth, googleProvider);
       return { success: true, message: 'Signed in with Google successfully!' };
     } catch (error: any) {
       console.error('Google sign-in error:', error);
-
       let errorMessage = 'An error occurred during sign in';
-
-      if (error.code === 'auth/popup-closed-by-user') {
-        errorMessage = 'Sign-in was cancelled';
-      } else if (error.code === 'auth/popup-blocked') {
-        errorMessage = 'Pop-up was blocked by your browser';
-      } else if (error.code === 'auth/account-exists-with-different-credential') {
-        errorMessage = 'Account exists with a different sign-in method';
-      }
-
+      if (error?.code === 'auth/popup-closed-by-user') errorMessage = 'Sign-in was cancelled';
+      else if (error?.code === 'auth/popup-blocked') errorMessage = 'Pop-up was blocked by your browser';
+      else if (error?.code === 'auth/account-exists-with-different-credential') errorMessage = 'Account exists with a different sign-in method';
       return { success: false, message: errorMessage };
     } finally {
       setIsLoading(false);
