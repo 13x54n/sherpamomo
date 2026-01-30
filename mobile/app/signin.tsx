@@ -10,10 +10,26 @@ import {
   TextInput,
   View,
 } from "react-native";
+import * as WebBrowser from "expo-web-browser";
 import { Ionicons } from "@expo/vector-icons";
 import { colors, spacing, borderRadius, typography } from "../lib/theme";
 import { useAuth } from "../contexts/auth";
 import { API_BASE_URL } from "../lib/api";
+
+const WEB_APP_URL = process.env.EXPO_PUBLIC_WEB_URL || "https://sherpamomo.vercel.app";
+const REDIRECT_URI = "sherpamomo://auth/callback";
+const GOOGLE_SIGNIN_URL =
+  `${WEB_APP_URL}/signin?mobile=1&redirect_uri=${encodeURIComponent(REDIRECT_URI)}`;
+
+function getCodeFromRedirectUrl(url: string): string | null {
+  const match = url.match(/[?&]code=([^&]+)/);
+  if (!match) return null;
+  try {
+    return decodeURIComponent(match[1]);
+  } catch {
+    return match[1];
+  }
+}
 
 // Normalize Canadian phone numbers
 const normalizePhoneNumber = (rawPhone: string): string | null => {
@@ -30,7 +46,57 @@ export default function SignInScreen() {
   const [code, setCode] = useState("");
   const [step, setStep] = useState<"phone" | "code">("phone");
   const [loading, setLoading] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const handleGoogleSignIn = async () => {
+    setError(null);
+    setGoogleLoading(true);
+    try {
+      const result = await WebBrowser.openAuthSessionAsync(
+        GOOGLE_SIGNIN_URL,
+        REDIRECT_URI
+      );
+
+      if (result.type !== "success" || !result.url) {
+        if (result.type === "cancel" || result.type === "dismiss") {
+          // User closed the in-app browser
+          return;
+        }
+        setError("Sign-in was cancelled.");
+        return;
+      }
+
+      const authCode = getCodeFromRedirectUrl(result.url);
+      if (!authCode) {
+        setError("Could not complete sign-in. Please try again.");
+        return;
+      }
+
+      const res = await fetch(`${API_BASE_URL}/api/auth/mobile/callback`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code: authCode }),
+      });
+      const data = await res.json().catch(() => ({}));
+
+      if (!res.ok) {
+        setError(data.message || "Sign-in failed.");
+        return;
+      }
+
+      await signIn(data.token, {
+        id: data.user.id,
+        phone: data.user.phone ?? "",
+        name: data.user.name ?? undefined,
+      });
+      // Auth context will redirect to tabs
+    } catch (e: any) {
+      setError(e.message || "Something went wrong.");
+    } finally {
+      setGoogleLoading(false);
+    }
+  };
 
   const requestCode = async () => {
     setError(null);
@@ -184,6 +250,30 @@ export default function SignInScreen() {
                     />
                   </>
                 )}
+              </Pressable>
+
+              <View style={styles.orRow}>
+                <View style={styles.orLine} />
+                <Text style={styles.orText}>or</Text>
+                <View style={styles.orLine} />
+              </View>
+              <Pressable
+                style={({ pressed }) => [
+                  styles.googleButton,
+                  pressed && styles.googleButtonPressed,
+                  googleLoading && styles.googleButtonDisabled,
+                ]}
+                onPress={handleGoogleSignIn}
+                disabled={googleLoading}
+              >
+                {googleLoading ? (
+                  <ActivityIndicator size="small" color={colors.textPrimary} />
+                ) : (
+                  <Ionicons name="logo-google" size={20} color={colors.textPrimary} />
+                )}
+                <Text style={styles.googleButtonText}>
+                  {googleLoading ? "Signing in…" : "Sign in with Google"}
+                </Text>
               </Pressable>
             </>
           ) : (
@@ -371,6 +461,43 @@ const styles = StyleSheet.create({
   backButtonText: {
     ...typography.bodySmall,
     color: colors.textSecondary,
+  },
+  orRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginVertical: spacing.lg,
+    gap: spacing.md,
+  },
+  orLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: colors.border,
+  },
+  orText: {
+    ...typography.bodySmall,
+    color: colors.textMuted,
+  },
+  googleButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: spacing.lg,
+    borderRadius: borderRadius.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+    gap: spacing.sm,
+  },
+  googleButtonPressed: {
+    backgroundColor: colors.surfaceElevated,
+  },
+  googleButtonDisabled: {
+    opacity: 0.7,
+  },
+  googleButtonText: {
+    ...typography.body,
+    color: colors.textPrimary,
+    fontWeight: "600",
   },
   footer: {
     ...typography.caption,

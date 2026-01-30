@@ -1,6 +1,7 @@
 import { useState, useCallback } from "react";
 import {
   ActivityIndicator,
+  Linking,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -74,12 +75,12 @@ export default function ProfileScreen() {
     {
       icon: "document-text-outline",
       label: "Terms of Service",
-      onPress: () => {},
+      onPress: () => Linking.openURL("https://sherpamomo.vercel.app/terms"),
     },
     {
       icon: "shield-outline",
       label: "Privacy Policy",
-      onPress: () => {},
+      onPress: () => Linking.openURL("https://sherpamomo.vercel.app/privacy"),
     },
   ];
 
