@@ -1,5 +1,6 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
+  ActivityIndicator,
   Image,
   Pressable,
   ScrollView,
@@ -10,7 +11,7 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
-import { products } from "../../lib/data";
+import { productsApi, Product } from "../../lib/api";
 import { useCart } from "../../contexts/cart";
 import { colors, spacing, borderRadius, typography } from "../../lib/theme";
 
@@ -20,13 +21,44 @@ export default function ProductScreen() {
   const router = useRouter();
   const { addItem } = useCart();
   const [quantity, setQuantity] = useState(1);
-  const product = products.find((item) => item.id === id);
+  const [product, setProduct] = useState<Product | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  if (!product) {
+  useEffect(() => {
+    if (id) {
+      loadProduct();
+    }
+  }, [id]);
+
+  const loadProduct = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const data = await productsApi.getById(id!);
+      setProduct(data);
+    } catch (err: any) {
+      console.error("Failed to load product:", err);
+      setError(err.message || "Failed to load product");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <View style={[styles.emptyContainer, { paddingTop: insets.top }]}>
+        <ActivityIndicator size="large" color={colors.primary} />
+        <Text style={styles.loadingText}>Loading...</Text>
+      </View>
+    );
+  }
+
+  if (error || !product) {
     return (
       <View style={[styles.emptyContainer, { paddingTop: insets.top }]}>
         <Ionicons name="alert-circle" size={64} color={colors.textMuted} />
-        <Text style={styles.emptyTitle}>Product not found</Text>
+        <Text style={styles.emptyTitle}>{error || "Product not found"}</Text>
         <Pressable
           style={({ pressed }) => [
             styles.backButton,
@@ -88,9 +120,9 @@ export default function ProductScreen() {
         showsVerticalScrollIndicator={false}
       >
         {/* Category Badge */}
-        <View style={styles.categoryBadge}>
+        {/* <View style={styles.categoryBadge}>
           <Text style={styles.categoryText}>{product.category}</Text>
-        </View>
+        </View> */}
 
         {/* Title & Price */}
         <View style={styles.titleRow}>
@@ -101,16 +133,21 @@ export default function ProductScreen() {
         {/* Rating */}
         <View style={styles.ratingRow}>
           <View style={styles.stars}>
-            {[1, 2, 3, 4, 5].map((star) => (
-              <Ionicons
-                key={star}
-                name={star <= 4 ? "star" : "star-half"}
-                size={16}
-                color={colors.primary}
-              />
-            ))}
+            {[1, 2, 3, 4, 5].map((star) => {
+              const rating = product.rating || 4.5;
+              return (
+                <Ionicons
+                  key={star}
+                  name={star <= Math.floor(rating) ? "star" : star <= rating + 0.5 ? "star-half" : "star-outline"}
+                  size={16}
+                  color={colors.primary}
+                />
+              );
+            })}
           </View>
-          <Text style={styles.ratingText}>4.8 (128 reviews)</Text>
+          <Text style={styles.ratingText}>
+            {product.rating?.toFixed(1) || "N/A"} ({product.reviewCount || 0} reviews)
+          </Text>
         </View>
 
         {/* Description */}
@@ -120,11 +157,11 @@ export default function ProductScreen() {
         </View>
 
         {/* Ingredients */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Ingredients</Text>
-          <View style={styles.ingredientsList}>
-            {["Organic flour", "Fresh vegetables", "Herbs & spices", "Love"].map(
-              (ingredient, index) => (
+        {product.ingredients && product.ingredients.length > 0 && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Ingredients</Text>
+            <View style={styles.ingredientsList}>
+              {product.ingredients.map((ingredient, index) => (
                 <View key={index} style={styles.ingredientItem}>
                   <Ionicons
                     name="checkmark-circle"
@@ -133,28 +170,10 @@ export default function ProductScreen() {
                   />
                   <Text style={styles.ingredientText}>{ingredient}</Text>
                 </View>
-              )
-            )}
+              ))}
+            </View>
           </View>
-        </View>
-
-        {/* Nutrition Info */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Nutrition Info</Text>
-          <View style={styles.nutritionGrid}>
-            {[
-              { label: "Calories", value: "320" },
-              { label: "Protein", value: "18g" },
-              { label: "Carbs", value: "42g" },
-              { label: "Fat", value: "8g" },
-            ].map((item, index) => (
-              <View key={index} style={styles.nutritionItem}>
-                <Text style={styles.nutritionValue}>{item.value}</Text>
-                <Text style={styles.nutritionLabel}>{item.label}</Text>
-              </View>
-            ))}
-          </View>
-        </View>
+        )}
       </ScrollView>
 
       {/* Bottom Action Bar */}
@@ -216,6 +235,11 @@ const styles = StyleSheet.create({
   emptyTitle: {
     ...typography.h2,
     color: colors.textPrimary,
+  },
+  loadingText: {
+    ...typography.body,
+    color: colors.textSecondary,
+    marginTop: spacing.md,
   },
   backButton: {
     paddingHorizontal: spacing.xxl,

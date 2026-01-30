@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
@@ -16,7 +16,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useCart } from "../contexts/cart";
 import { useAuth } from "../contexts/auth";
 import { colors, spacing, borderRadius, typography } from "../lib/theme";
-import { ordersApi } from "../lib/api";
+import { ordersApi, userApi, CreateOrderRequest } from "../lib/api";
 import { Alert } from "react-native";
 
 export default function CheckoutScreen() {
@@ -25,12 +25,48 @@ export default function CheckoutScreen() {
   const { items, subtotal, clearCart } = useCart();
   const { user } = useAuth();
   const [loading, setLoading] = useState(false);
+  const [loadingProfile, setLoadingProfile] = useState(true);
   const [form, setForm] = useState({
     name: user?.name || "",
     phone: user?.phone || "",
     address: "",
     notes: "",
   });
+
+  // Load saved profile data on mount
+  useEffect(() => {
+    loadSavedProfile();
+  }, []);
+
+  const loadSavedProfile = async () => {
+    try {
+      setLoadingProfile(true);
+      const profile = await userApi.getProfile();
+      setForm((prev) => ({
+        ...prev,
+        name: profile.name || prev.name,
+        phone: profile.phone || prev.phone,
+        address: profile.address || prev.address,
+      }));
+    } catch (err) {
+      console.error("Failed to load saved profile:", err);
+    } finally {
+      setLoadingProfile(false);
+    }
+  };
+
+  // Save profile data after successful order
+  const saveProfileData = async () => {
+    try {
+      await userApi.updateProfile({
+        name: form.name.trim(),
+        phone: form.phone.trim(),
+        address: form.address.trim(),
+      });
+    } catch (err) {
+      console.error("Failed to save profile:", err);
+    }
+  };
 
   const shipping = subtotal >= 50 ? 0 : items.length > 0 ? 4.5 : 0;
   const tax = subtotal * 0.13;
@@ -44,12 +80,14 @@ export default function CheckoutScreen() {
 
     setLoading(true);
     try {
-      const orderData = {
+      const orderData: CreateOrderRequest = {
         items: items.map((item) => ({
           productId: item.id,
           name: item.name,
           price: item.price,
           quantity: item.quantity,
+          image: item.image,
+          unit: item.unit,
         })),
         customerInfo: {
           name: form.name,
@@ -58,20 +96,28 @@ export default function CheckoutScreen() {
           notes: form.notes,
         },
         paymentInfo: {
-          method: "cash",
+          method: "cash_on_delivery",
           status: "pending",
         },
       };
 
-      await ordersApi.create(orderData);
+      const response = await ordersApi.create(orderData);
+      
+      // Save profile data for future orders
+      await saveProfileData();
       
       clearCart();
-      Alert.alert("Order Placed!", "Your order has been submitted successfully.", [
-        { text: "OK", onPress: () => router.replace("/(tabs)") },
-      ]);
-    } catch (error) {
+      Alert.alert(
+        "Order Placed!",
+        `Your order #${response.orderId} has been submitted successfully.\n\nTotal: $${response.order.total.toFixed(2)}`,
+        [
+          { text: "View Orders", onPress: () => router.replace("/(tabs)/orders") },
+          { text: "Continue Shopping", onPress: () => router.replace("/(tabs)") },
+        ]
+      );
+    } catch (error: any) {
       console.error("Order error:", error);
-      Alert.alert("Error", "Failed to place order. Please try again.");
+      Alert.alert("Error", error.message || "Failed to place order. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -169,48 +215,21 @@ export default function CheckoutScreen() {
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
               <View style={styles.sectionIcon}>
-                <Ionicons name="card" size={20} color={colors.primary} />
+                <Ionicons name="cash" size={20} color={colors.primary} />
               </View>
               <Text style={styles.sectionTitle}>Payment Method</Text>
             </View>
-            <View style={styles.paymentOptions}>
-              {[
-                { id: "cash", label: "Cash on Delivery", icon: "cash" },
-                { id: "card", label: "Credit Card", icon: "card" },
-              ].map((method, index) => (
-                <Pressable
-                  key={method.id}
-                  style={({ pressed }) => [
-                    styles.paymentOption,
-                    index === 0 && styles.paymentOptionActive,
-                    pressed && styles.paymentOptionPressed,
-                  ]}
-                >
-                  <View style={styles.paymentOptionContent}>
-                    <Ionicons
-                      name={method.icon as any}
-                      size={20}
-                      color={index === 0 ? colors.primary : colors.textSecondary}
-                    />
-                    <Text
-                      style={[
-                        styles.paymentOptionText,
-                        index === 0 && styles.paymentOptionTextActive,
-                      ]}
-                    >
-                      {method.label}
-                    </Text>
-                  </View>
-                  <View
-                    style={[
-                      styles.radioOuter,
-                      index === 0 && styles.radioOuterActive,
-                    ]}
-                  >
-                    {index === 0 && <View style={styles.radioInner} />}
-                  </View>
-                </Pressable>
-              ))}
+            <View style={styles.paymentCard}>
+              <View style={styles.paymentInfo}>
+                {/* <Ionicons name="cash" size={24} color={colors.success} /> */}
+                <View style={styles.paymentDetails}>
+                  <Text style={styles.paymentTitle}>Cash on Delivery</Text>
+                  <Text style={styles.paymentSubtitle}>Pay when your order arrives</Text>
+                </View>
+              </View>
+              <View style={styles.paymentBadge}>
+                <Ionicons name="checkmark-circle" size={20} color={colors.success} />
+              </View>
             </View>
           </View>
 
@@ -395,55 +414,40 @@ const styles = StyleSheet.create({
     minHeight: 80,
     textAlignVertical: "top",
   },
-  paymentOptions: {
-    gap: spacing.md,
-  },
-  paymentOption: {
+  paymentCard: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
     backgroundColor: colors.surface,
-    borderRadius: borderRadius.md,
+    borderRadius: borderRadius.lg,
     padding: spacing.lg,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: colors.success,
   },
-  paymentOptionActive: {
-    borderColor: colors.primary,
-  },
-  paymentOptionPressed: {
-    opacity: 0.8,
-  },
-  paymentOptionContent: {
+  paymentInfo: {
     flexDirection: "row",
     alignItems: "center",
     gap: spacing.md,
   },
-  paymentOptionText: {
-    ...typography.body,
-    color: colors.textSecondary,
+  paymentDetails: {
+    gap: spacing.xs,
   },
-  paymentOptionTextActive: {
+  paymentTitle: {
+    ...typography.body,
     color: colors.textPrimary,
     fontWeight: "600",
   },
-  radioOuter: {
-    width: 22,
-    height: 22,
-    borderRadius: 11,
-    borderWidth: 2,
-    borderColor: colors.border,
+  paymentSubtitle: {
+    ...typography.caption,
+    color: colors.textMuted,
+  },
+  paymentBadge: {
+    width: 32,
+    height: 32,
+    borderRadius: borderRadius.full,
+    backgroundColor: `${colors.success}20`,
     alignItems: "center",
     justifyContent: "center",
-  },
-  radioOuterActive: {
-    borderColor: colors.primary,
-  },
-  radioInner: {
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-    backgroundColor: colors.primary,
   },
   summaryCard: {
     backgroundColor: colors.surface,

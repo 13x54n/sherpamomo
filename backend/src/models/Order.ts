@@ -17,7 +17,7 @@ export interface IOrder extends Document {
     tax: number;
     shipping: number;
     total: number;
-    status: 'pending' | 'confirmed' | 'preparing' | 'ready' | 'delivered' | 'cancelled' | 'completed' | 'failed';
+    status: 'pending' | 'packaging' | 'delivered' | 'cancelled' | 'completed' | 'failed';
     customerInfo?: {
         name: string;
         email: string;

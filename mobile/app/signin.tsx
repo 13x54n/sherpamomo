@@ -1,6 +1,7 @@
 import { useState } from "react";
 import {
   ActivityIndicator,
+  Image,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -122,11 +123,12 @@ export default function SignInScreen() {
       >
         {/* Logo Section */}
         <View style={styles.logoSection}>
-          <View style={styles.logoContainer}>
-            <Ionicons name="restaurant" size={48} color={colors.primary} />
-          </View>
-          <Text style={styles.brand}>Sherpa Momo</Text>
-          <Text style={styles.tagline}>Authentic Himalayan Dumplings</Text>
+          <Image
+            source={require("../assets/images/SMPFT.png")}
+            style={styles.logo}
+            resizeMode="contain"
+          />
+          {/* <Text style={styles.tagline}>Authentic Himalayan Taste Delivered</Text> */}
         </View>
 
         {/* Form Section */}
@@ -136,8 +138,8 @@ export default function SignInScreen() {
           </Text>
           <Text style={styles.subtitle}>
             {step === "phone"
-              ? "Enter your phone number to continue"
-              : "Enter the code sent to your phone"}
+              ? "Enter your phone number to get started."
+              : "Enter the OTP to verify your account."}
           </Text>
 
           {error && (
@@ -156,7 +158,7 @@ export default function SignInScreen() {
                   onChangeText={setPhone}
                   placeholder="(416) 555-1234"
                   placeholderTextColor={colors.textMuted}
-                  keyboardType="phone-pad"
+                  keyboardType="number-pad"
                   style={styles.input}
                   autoComplete="tel"
                 />
@@ -238,7 +240,7 @@ export default function SignInScreen() {
 
         {/* Footer */}
         <Text style={styles.footer}>
-          By continuing, you agree to our Terms of Service
+          By continuing, you agree to our <Text style={styles.footerLink}>Terms of Service</Text> and <Text style={styles.footerLink}>Privacy Policy</Text>
         </Text>
       </KeyboardAvoidingView>
     </View>
@@ -259,21 +261,10 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginBottom: spacing.xxxl,
   },
-  logoContainer: {
+  logo: {
     width: 100,
     height: 100,
-    borderRadius: borderRadius.xl,
-    backgroundColor: colors.surface,
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: spacing.lg,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  brand: {
-    ...typography.h1,
-    color: colors.textPrimary,
-    marginBottom: spacing.xs,
+    marginBottom: spacing.md,
   },
   tagline: {
     ...typography.bodySmall,
@@ -286,11 +277,13 @@ const styles = StyleSheet.create({
     ...typography.h2,
     color: colors.textPrimary,
     marginBottom: spacing.xs,
+    textAlign: "center",
   },
   subtitle: {
     ...typography.body,
     color: colors.textSecondary,
     marginBottom: spacing.xl,
+    textAlign: "center",
   },
   errorContainer: {
     flexDirection: "row",
@@ -382,6 +375,10 @@ const styles = StyleSheet.create({
   footer: {
     ...typography.caption,
     color: colors.textMuted,
-    textAlign: "center",
+    // textAlign: "center",
+  },
+  footerLink: {
+    color: colors.primary,
+    textDecorationLine: "underline",
   },
 });

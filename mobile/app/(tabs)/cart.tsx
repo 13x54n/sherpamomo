@@ -24,7 +24,18 @@ export default function CartScreen() {
     <View style={[styles.container, { paddingTop: insets.top }]}>
       {/* Header */}
       <View style={styles.header}>
-        <Text style={styles.title}>Your Cart</Text>
+        <View style={styles.headerLeft}>
+          <Pressable
+            onPress={() => router.back()}
+            style={({ pressed }) => [
+              styles.backButton,
+              pressed && styles.backButtonPressed,
+            ]}
+          >
+            <Ionicons name="chevron-back" size={24} color={colors.textPrimary} />
+          </Pressable>
+          <Text style={styles.title}>Your Cart</Text>
+        </View>
         <Text style={styles.itemCount}>
           {items.length} {items.length === 1 ? "item" : "items"}
         </Text>
@@ -192,13 +203,31 @@ const styles = StyleSheet.create({
   },
   header: {
     flexDirection: "row",
-    alignItems: "baseline",
+    alignItems: "center",
     justifyContent: "space-between",
-    paddingHorizontal: spacing.xl,
+    paddingHorizontal: spacing.lg,
     paddingVertical: spacing.lg,
   },
+  headerLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.sm,
+  },
+  backButton: {
+    width: 40,
+    height: 40,
+    borderRadius: borderRadius.full,
+    backgroundColor: colors.surface,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  backButtonPressed: {
+    backgroundColor: colors.surfaceElevated,
+  },
   title: {
-    ...typography.h1,
+    ...typography.h2,
     color: colors.textPrimary,
   },
   itemCount: {

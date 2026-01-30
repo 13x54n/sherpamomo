@@ -1,7 +1,6 @@
-import { ActivityIndicator, StyleSheet, Text, View } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
+import { ActivityIndicator, Image, StyleSheet, Text, View } from "react-native";
 import { useAuth } from "../contexts/auth";
-import { colors, typography } from "../lib/theme";
+import { colors, typography, spacing } from "../lib/theme";
 
 export default function Index() {
   const { isLoading } = useAuth();
@@ -10,10 +9,12 @@ export default function Index() {
   if (isLoading) {
     return (
       <View style={styles.container}>
-        <View style={styles.logoContainer}>
-          <Ionicons name="restaurant" size={48} color={colors.primary} />
-        </View>
-        <Text style={styles.brand}>Sherpa Momo</Text>
+        <Image
+          source={require("../assets/images/SMPFT.png")}
+          style={styles.logo}
+          resizeMode="contain"
+        />
+        <Text style={styles.tagline}>Authentic Himalayan Dumplings</Text>
         <ActivityIndicator color={colors.primary} style={styles.loader} />
       </View>
     );
@@ -22,7 +23,12 @@ export default function Index() {
   // While redirecting, show loading
   return (
     <View style={styles.container}>
-      <ActivityIndicator color={colors.primary} />
+      <Image
+        source={require("../assets/images/SMPFT.png")}
+        style={styles.logo}
+        resizeMode="contain"
+      />
+      <ActivityIndicator color={colors.primary} style={styles.loader} />
     </View>
   );
 }
@@ -34,23 +40,17 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     backgroundColor: colors.background,
   },
-  logoContainer: {
-    width: 100,
-    height: 100,
-    borderRadius: 20,
-    backgroundColor: colors.surface,
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: colors.border,
+  logo: {
+    width: 200,
+    height: 200,
+    marginBottom: spacing.md,
   },
-  brand: {
-    ...typography.h1,
-    color: colors.textPrimary,
-    marginBottom: 24,
+  tagline: {
+    ...typography.body,
+    color: colors.textMuted,
+    marginBottom: spacing.xl,
   },
   loader: {
-    marginTop: 8,
+    marginTop: spacing.md,
   },
 });

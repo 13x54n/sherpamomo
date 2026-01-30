@@ -23,6 +23,7 @@ export const colors = {
   success: "#22c55e",
   error: "#ef4444",
   warning: "#f59e0b",
+  info: "#3b82f6",
   
   // Overlay
   overlay: "rgba(0, 0, 0, 0.5)",

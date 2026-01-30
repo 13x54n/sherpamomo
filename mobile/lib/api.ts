@@ -74,21 +74,107 @@ export const apiRequest = async <T>(
   return response.json();
 };
 
+// Product type
+export interface Product {
+  id: string;
+  name: string;
+  description: string;
+  price: number;
+  category: string;
+  image: string;
+  rating?: number;
+  reviewCount?: number;
+  ingredients?: string[];
+  amount?: number;
+  unit?: string;
+  featured?: boolean;
+  inStock?: boolean;
+}
+
+interface ProductsResponse {
+  products: Product[];
+  pagination: {
+    currentPage: number;
+    totalPages: number;
+    totalProducts: number;
+    hasNextPage: boolean;
+    hasPrevPage: boolean;
+  };
+}
+
 // Products API
 export const productsApi = {
-  getAll: async () => {
-    return apiRequest<any[]>('/api/products');
+  getAll: async (): Promise<Product[]> => {
+    const response = await apiRequest<ProductsResponse>('/api/products');
+    return response.products;
   },
 
-  getById: async (id: string) => {
-    return apiRequest<any>(`/api/products/${id}`);
+  getById: async (id: string): Promise<Product> => {
+    return apiRequest<Product>(`/api/products/${id}`);
   },
 };
 
+// Order types
+export interface OrderItem {
+  productId: string;
+  name: string;
+  price: number;
+  quantity: number;
+  image?: string;
+  unit?: string;
+}
+
+export interface CustomerInfo {
+  name: string;
+  email?: string;
+  phone: string;
+  address: string;
+  notes?: string;
+}
+
+export interface PaymentInfo {
+  method: 'cash' | 'cash_on_delivery' | 'card';
+  status: 'pending' | 'completed' | 'failed';
+  transactionId?: string;
+}
+
+export interface Order {
+  _id: string;
+  orderId: string;
+  items: OrderItem[];
+  subtotal: number;
+  tax: number;
+  shipping: number;
+  total: number;
+  status: 'pending' | 'packaging' | 'delivered' | 'cancelled' | 'completed' | 'failed';
+  customerInfo?: CustomerInfo;
+  paymentInfo?: PaymentInfo;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateOrderRequest {
+  items: OrderItem[];
+  customerInfo: CustomerInfo;
+  paymentInfo: PaymentInfo;
+}
+
+export interface CreateOrderResponse {
+  message: string;
+  orderId: string;
+  order: {
+    id: string;
+    orderId: string;
+    total: number;
+    status: string;
+    createdAt: string;
+  };
+}
+
 // Orders API
 export const ordersApi = {
-  create: async (orderData: any) => {
-    return apiRequest<any>(
+  create: async (orderData: CreateOrderRequest): Promise<CreateOrderResponse> => {
+    return apiRequest<CreateOrderResponse>(
       '/api/orders',
       {
         method: 'POST',
@@ -98,19 +184,56 @@ export const ordersApi = {
     );
   },
 
-  getUserOrders: async () => {
-    return apiRequest<any[]>('/api/orders/user/orders', {}, true);
+  getUserOrders: async (): Promise<Order[]> => {
+    return apiRequest<Order[]>('/api/orders/user/orders', {}, true);
+  },
+
+  getOrder: async (orderId: string): Promise<Order> => {
+    return apiRequest<Order>(`/api/orders/${orderId}`);
+  },
+
+  cancelOrder: async (orderId: string): Promise<{ message: string; order: Order }> => {
+    return apiRequest<{ message: string; order: Order }>(
+      `/api/orders/${orderId}/cancel`,
+      { method: 'PUT' },
+      true
+    );
   },
 };
 
+// User types
+export interface UserProfile {
+  id: string;
+  firebaseUid?: string;
+  email?: string;
+  name?: string;
+  phone?: string;
+  address?: string;
+  authProvider?: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface UpdateProfileRequest {
+  name?: string;
+  phone?: string;
+  address?: string;
+  email?: string;
+}
+
+export interface UpdateProfileResponse {
+  message: string;
+  user: UserProfile;
+}
+
 // User API
 export const userApi = {
-  getProfile: async () => {
-    return apiRequest<any>('/api/users/me', {}, true);
+  getProfile: async (): Promise<UserProfile> => {
+    return apiRequest<UserProfile>('/api/users/me', {}, true);
   },
 
-  updateProfile: async (data: any) => {
-    return apiRequest<any>(
+  updateProfile: async (data: UpdateProfileRequest): Promise<UpdateProfileResponse> => {
+    return apiRequest<UpdateProfileResponse>(
       '/api/users/profile',
       {
         method: 'PUT',

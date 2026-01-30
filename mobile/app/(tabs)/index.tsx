@@ -1,4 +1,6 @@
+import { useState, useEffect } from "react";
 import {
+  ActivityIndicator,
   FlatList,
   Image,
   Pressable,
@@ -9,7 +11,7 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
-import { products } from "../../lib/data";
+import { productsApi, Product } from "../../lib/api";
 import { useCart } from "../../contexts/cart";
 import { useAuth } from "../../contexts/auth";
 import { colors, spacing, borderRadius, typography } from "../../lib/theme";
@@ -17,8 +19,29 @@ import { colors, spacing, borderRadius, typography } from "../../lib/theme";
 export default function HomeScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { addItem } = useCart();
-  const { signOut } = useAuth();
+  const { addItem, itemCount } = useCart();
+  
+  const [products, setProducts] = useState<Product[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    loadProducts();
+  }, []);
+
+  const loadProducts = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const data = await productsApi.getAll();
+      setProducts(data);
+    } catch (err: any) {
+      console.error("Failed to load products:", err);
+      setError(err.message || "Failed to load products");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const categories = [...new Set(products.map((p) => p.category))];
 
@@ -28,7 +51,11 @@ export default function HomeScreen() {
       <View style={styles.header}>
         <View style={styles.headerLeft}>
           <View style={styles.logoSmall}>
-            <Ionicons name="restaurant" size={20} color={colors.primary} />
+            <Image
+              source={require("../../assets/images/SMPFT.png")}
+              style={styles.logoSmall}
+              resizeMode="contain"
+            />
           </View>
           <View>
             <Text style={styles.greeting}>Welcome to</Text>
@@ -36,18 +63,23 @@ export default function HomeScreen() {
           </View>
         </View>
         <Pressable
-          onPress={signOut}
+          onPress={() => router.push("/(tabs)/cart")}
           style={({ pressed }) => [
-            styles.profileButton,
-            pressed && styles.profileButtonPressed,
+            styles.cartButton,
+            pressed && styles.cartButtonPressed,
           ]}
         >
-          <Ionicons name="person" size={20} color={colors.textSecondary} />
+          <Ionicons name="bag" size={22} color={colors.textPrimary} />
+          {itemCount > 0 && (
+            <View style={styles.cartBadge}>
+              <Text style={styles.cartBadgeText}>{itemCount}</Text>
+            </View>
+          )}
         </Pressable>
       </View>
 
       {/* Hero Banner */}
-      <View style={styles.heroBanner}>
+      {/* <View style={styles.heroBanner}>
         <View style={styles.heroContent}>
           <Text style={styles.heroTitle}>Fresh Momos</Text>
           <Text style={styles.heroSubtitle}>
@@ -66,10 +98,10 @@ export default function HomeScreen() {
             style={styles.heroImage}
           />
         </View>
-      </View>
+      </View> */}
 
       {/* Categories */}
-      <View style={styles.categoriesSection}>
+      {/* <View style={styles.categoriesSection}>
         <Text style={styles.sectionTitle}>Categories</Text>
         <FlatList
           horizontal
@@ -96,14 +128,36 @@ export default function HomeScreen() {
             </Pressable>
           )}
         />
-      </View>
+      </View> */}
 
-      {/* Products */}
-      <View style={styles.productsSection}>
-        <Text style={styles.sectionTitle}>Popular Items</Text>
-      </View>
+      {/* Loading State */}
+      {loading && (
+        <View style={styles.centerContainer}>
+          <ActivityIndicator size="large" color={colors.primary} />
+          <Text style={styles.loadingText}>Loading menu...</Text>
+        </View>
+      )}
 
-      <FlatList
+      {/* Error State */}
+      {error && !loading && (
+        <View style={styles.centerContainer}>
+          <Ionicons name="alert-circle" size={48} color={colors.error} />
+          <Text style={styles.errorText}>{error}</Text>
+          <Pressable
+            style={({ pressed }) => [
+              styles.retryButton,
+              pressed && styles.retryButtonPressed,
+            ]}
+            onPress={loadProducts}
+          >
+            <Text style={styles.retryButtonText}>Try Again</Text>
+          </Pressable>
+        </View>
+      )}
+
+      {/* Products List */}
+      {!loading && !error && (
+        <FlatList
         data={products}
         keyExtractor={(item) => item.id}
         numColumns={2}
@@ -134,7 +188,7 @@ export default function HomeScreen() {
               </Pressable>
             </View>
             <View style={styles.productInfo}>
-              <Text style={styles.productCategory}>{item.category}</Text>
+              {/* <Text style={styles.productCategory}>{item.category}</Text> */}
               <Text style={styles.productName} numberOfLines={1}>
                 {item.name}
               </Text>
@@ -144,13 +198,14 @@ export default function HomeScreen() {
                 </Text>
                 <View style={styles.ratingBadge}>
                   <Ionicons name="star" size={12} color={colors.primary} />
-                  <Text style={styles.ratingText}>4.8</Text>
+                  <Text style={styles.ratingText}>{item.rating?.toFixed(1) || "N/A"}</Text>
                 </View>
               </View>
             </View>
           </Pressable>
         )}
       />
+      )}
     </View>
   );
 }
@@ -159,6 +214,38 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.background,
+  },
+  centerContainer: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: spacing.xl,
+  },
+  loadingText: {
+    ...typography.body,
+    color: colors.textSecondary,
+    marginTop: spacing.md,
+  },
+  errorText: {
+    ...typography.body,
+    color: colors.error,
+    textAlign: "center",
+    marginTop: spacing.md,
+    marginBottom: spacing.lg,
+  },
+  retryButton: {
+    backgroundColor: colors.primary,
+    paddingHorizontal: spacing.xl,
+    paddingVertical: spacing.md,
+    borderRadius: borderRadius.md,
+  },
+  retryButtonPressed: {
+    backgroundColor: colors.primaryDark,
+  },
+  retryButtonText: {
+    ...typography.body,
+    color: colors.background,
+    fontWeight: "600",
   },
   header: {
     flexDirection: "row",
@@ -190,7 +277,7 @@ const styles = StyleSheet.create({
     ...typography.h3,
     color: colors.textPrimary,
   },
-  profileButton: {
+  cartButton: {
     width: 44,
     height: 44,
     borderRadius: borderRadius.full,
@@ -199,9 +286,28 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     borderWidth: 1,
     borderColor: colors.border,
+    position: "relative",
   },
-  profileButtonPressed: {
+  cartButtonPressed: {
     backgroundColor: colors.surfaceElevated,
+  },
+  cartBadge: {
+    position: "absolute",
+    top: -4,
+    right: -4,
+    backgroundColor: colors.primary,
+    borderRadius: borderRadius.full,
+    minWidth: 18,
+    height: 18,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 4,
+  },
+  cartBadgeText: {
+    ...typography.caption,
+    color: colors.background,
+    fontWeight: "700",
+    fontSize: 10,
   },
   heroBanner: {
     flexDirection: "row",
@@ -298,7 +404,7 @@ const styles = StyleSheet.create({
   },
   productCard: {
     width: "48%",
-    backgroundColor: colors.surface,
+    // backgroundColor: colors.surface,
     borderRadius: borderRadius.lg,
     overflow: "hidden",
     borderWidth: 1,
@@ -309,7 +415,7 @@ const styles = StyleSheet.create({
   },
   productImageContainer: {
     position: "relative",
-    aspectRatio: 1,
+    aspectRatio: 3/2,
   },
   productImage: {
     width: "100%",
@@ -356,7 +462,7 @@ const styles = StyleSheet.create({
   },
   productPrice: {
     ...typography.body,
-    color: colors.textPrimary,
+    color: colors.primary,
     fontWeight: "700",
   },
   ratingBadge: {

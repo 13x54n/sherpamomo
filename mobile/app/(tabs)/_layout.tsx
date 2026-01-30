@@ -1,11 +1,8 @@
 import { Tabs } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
-import { useCart } from "../../contexts/cart";
 import { colors } from "../../lib/theme";
 
 export default function TabsLayout() {
-  const { itemCount } = useCart();
-
   return (
     <Tabs
       screenOptions={{
@@ -36,22 +33,28 @@ export default function TabsLayout() {
         }}
       />
       <Tabs.Screen
+        name="orders"
+        options={{
+          title: "Orders",
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="receipt" color={color} size={size} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="profile"
+        options={{
+          title: "Profile",
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="person" color={color} size={size} />
+          ),
+        }}
+      />
+      {/* Hide cart from tabs but keep it accessible via header */}
+      <Tabs.Screen
         name="cart"
         options={{
-          title: "Cart",
-          tabBarBadge: itemCount > 0 ? itemCount : undefined,
-          tabBarBadgeStyle: {
-            backgroundColor: colors.primary,
-            color: colors.background,
-            fontSize: 11,
-            fontWeight: "700",
-            minWidth: 18,
-            height: 18,
-            lineHeight: 18,
-          },
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="bag" color={color} size={size} />
-          ),
+          href: null,
         }}
       />
     </Tabs>

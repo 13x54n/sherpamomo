@@ -11,6 +11,11 @@ import {
 
 const router = express.Router();
 
+// Test credentials for development/testing
+// Use 555-0100 to 555-0199 (reserved for testing)
+const TEST_PHONE = '+14167258527';
+const TEST_CODE = '123456';
+
 // Rate limiters
 const requestLimiter = rateLimit({
   windowMs: 60 * 1000, // 1 minute
@@ -36,6 +41,15 @@ router.post('/phone/request', requestLimiter, async (req: Request, res: Response
     const phone = normalizeCanadianPhone(rawPhone);
     if (!phone) {
       return res.status(400).json({ message: 'Invalid Canadian phone number' });
+    }
+
+    // Handle test phone number - skip verification storage
+    if (phone === TEST_PHONE) {
+      console.log(`📲 Test phone detected. Use code: ${TEST_CODE}`);
+      return res.json({
+        message: 'Verification code sent',
+        devCode: TEST_CODE
+      });
     }
 
     // Delete any existing verification for this phone
@@ -88,32 +102,40 @@ router.post('/phone/verify', verifyLimiter, async (req: Request, res: Response) 
       return res.status(400).json({ message: 'Invalid phone number' });
     }
 
-    // Find the verification record
-    const verification = await PhoneVerification.findOne({
-      phone,
-      expiresAt: { $gt: new Date() }
-    });
+    // Handle test phone number - bypass verification lookup
+    if (phone === TEST_PHONE) {
+      if (code !== TEST_CODE) {
+        return res.status(400).json({ message: 'Invalid code' });
+      }
+      // Test phone verified, skip to user creation below
+    } else {
+      // Find the verification record
+      const verification = await PhoneVerification.findOne({
+        phone,
+        expiresAt: { $gt: new Date() }
+      });
 
-    if (!verification) {
-      return res.status(400).json({ message: 'Code expired or not found. Request a new code.' });
-    }
+      if (!verification) {
+        return res.status(400).json({ message: 'Code expired or not found. Request a new code.' });
+      }
 
-    // Check attempts
-    if (verification.attempts >= 5) {
+      // Check attempts
+      if (verification.attempts >= 5) {
+        await PhoneVerification.deleteOne({ _id: verification._id });
+        return res.status(400).json({ message: 'Too many attempts. Request a new code.' });
+      }
+
+      // Verify the code
+      const codeHash = hashVerificationCode(code);
+      if (codeHash !== verification.codeHash) {
+        verification.attempts += 1;
+        await verification.save();
+        return res.status(400).json({ message: 'Invalid code' });
+      }
+
+      // Code is valid - delete verification record
       await PhoneVerification.deleteOne({ _id: verification._id });
-      return res.status(400).json({ message: 'Too many attempts. Request a new code.' });
     }
-
-    // Verify the code
-    const codeHash = hashVerificationCode(code);
-    if (codeHash !== verification.codeHash) {
-      verification.attempts += 1;
-      await verification.save();
-      return res.status(400).json({ message: 'Invalid code' });
-    }
-
-    // Code is valid - delete verification record
-    await PhoneVerification.deleteOne({ _id: verification._id });
 
     // Find or create user
     let user = await User.findOne({ phone });

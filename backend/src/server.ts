@@ -4,6 +4,7 @@ import dotenv from 'dotenv';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 import hpp from 'hpp';
+import os from 'os';
 import connectDB from './config/database';
 import productRoutes from './routes/products';
 import orderRoutes from './routes/orders';
@@ -85,7 +86,24 @@ app.use((err: any, req: express.Request, res: express.Response, next: express.Ne
   });
 });
 
+// Get local IP address
+function getLocalIP(): string {
+  const interfaces = os.networkInterfaces();
+  for (const name of Object.keys(interfaces)) {
+    for (const iface of interfaces[name] || []) {
+      // Skip internal (loopback) and non-IPv4 addresses
+      if (iface.family === 'IPv4' && !iface.internal) {
+        return iface.address;
+      }
+    }
+  }
+  return 'localhost';
+}
+
 app.listen(PORT, () => {
-  console.log(`🚀 Server running on port ${PORT}`);
+  const localIP = getLocalIP();
+  // console.log(`🚀 Server running on port ${PORT}`);
   console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
+  console.log(`📡 Local:   http://localhost:${PORT}`);
+  console.log(`📡 Network: http://${localIP}:${PORT}`);
 });
