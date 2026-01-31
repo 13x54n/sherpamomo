@@ -148,7 +148,7 @@ router.get('/', (req: Request, res: Response) => {
     <div class="container">
       <div class="card">
         <div class="icon" aria-hidden="true">
-          <img src="https://expo.dev/_next/image?url=https%3A%2F%2Fexpo.dev%2Fcdn-cgi%2Fimage%2Fwidth%3D512%2Fhttps%3A%2F%2Fstorage.googleapis.com%2Fprofile-image-storage-production%2Fbb142a8a-8821-4988-9e65-b6322a67481d.png&w=1080&q=75" alt="" width="64" height="64">
+          <img src="/ipainstall/public/SMPFT.png" alt="" width="64" height="64">
         </div>
         <h1>Install ${APP_TITLE}</h1>
         <p class="subtitle">Open this page in Safari on your iPhone, then tap below to add the app to your home screen.</p>
@@ -156,7 +156,6 @@ router.get('/', (req: Request, res: Response) => {
           <button type="button" class="install-btn">Install App</button>
         </a>
       </div>
-      <p class="footnote">The app will appear on your home screen after installation. You may need to trust the developer in Settings → General → VPN &amp; Device Management.</p>
     </div>
   </body>
 </html>`;
