@@ -1,4 +1,5 @@
 import express from 'express';
+import path from 'path';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import helmet from 'helmet';
@@ -10,6 +11,7 @@ import productRoutes from './routes/products';
 import orderRoutes from './routes/orders';
 import userRoutes from './routes/users';
 import authRoutes from './routes/auth';
+import otaRoutes from './routes/ota';
 import { authenticateUser } from './middleware/auth';
 
 dotenv.config();
@@ -73,6 +75,21 @@ app.use('/api/products', productRoutes);
 app.use('/api/orders', orderRoutes);
 app.use('/api/users', authenticateUser, userRoutes);
 
+// OTA iOS install: install page + manifest; IPA files from public/
+const publicDir = path.join(__dirname, '..', 'public');
+app.use('/ipainstall/public', express.static(publicDir, {
+  setHeaders: (res, filePath) => {
+    if (filePath.endsWith('.ipa')) {
+      res.set({
+        'Content-Type': 'application/octet-stream',
+        'Content-Disposition': 'attachment',
+        'Cache-Control': 'public, max-age=86400'
+      });
+    }
+  }
+}));
+app.use('/ipainstall', otaRoutes);
+
 // 404 handler
 app.use((req, res) => {
   res.status(404).json({ message: 'Route not found' });
@@ -103,8 +120,9 @@ function getLocalIP(): string {
 
 app.listen(PORT, () => {
   const localIP = getLocalIP();
-  // console.log(`🚀 Server running on port ${PORT}`);
+  const ipaFilename = process.env.IPA_FILENAME || 'SherpaMoMo.ipa';
   console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
   console.log(`📡 Local:   http://localhost:${PORT}`);
   console.log(`📡 Network: http://${localIP}:${PORT}`);
+  console.log(`📱 OTA install: http://${localIP}:${PORT}/ipainstall (put ${ipaFilename} in backend/public/)`);
 });
