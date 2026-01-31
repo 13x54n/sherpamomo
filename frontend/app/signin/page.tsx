@@ -2,30 +2,62 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Separator } from '@/components/ui/separator';
-import { ArrowLeft } from 'lucide-react';
 import { useAuth } from '@/contexts/auth';
 import { toast } from 'sonner';
 
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001/api';
+
 export default function SignInPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { signIn, isLoading } = useAuth();
+  const mobileRedirectUri = searchParams.get('redirect_uri');
+  const isMobileFlow = searchParams.get('mobile') === '1' && mobileRedirectUri;
 
   const handleGoogleSignIn = async () => {
     try {
       const result = await signIn();
 
-      if (result.success) {
-        toast.success(result.message);
-        router.push('/');
-      } else {
+      if (!result.success) {
         toast.error(result.message);
+        return;
       }
+
+      // If opened from mobile app, get one-time code and redirect back to app
+      if (isMobileFlow && mobileRedirectUri) {
+        const { getAuth } = await import('firebase/auth');
+        const { default: firebaseApp } = await import('@/lib/firebase');
+        const user = getAuth(firebaseApp).currentUser;
+        if (!user) {
+          toast.error('Sign-in state not ready. Please try again.');
+          return;
+        }
+        const res = await fetch(`${API_BASE}/auth/mobile-code`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            firebaseUid: user.uid,
+            email: user.email ?? undefined,
+            name: user.displayName ?? undefined,
+            redirect_uri: mobileRedirectUri,
+          }),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          toast.error(data.message || 'Could not complete sign-in for app.');
+          return;
+        }
+        const { code } = data;
+        const sep = mobileRedirectUri.includes('?') ? '&' : '?';
+        window.location.href = `${mobileRedirectUri}${sep}code=${encodeURIComponent(code)}`;
+        return;
+      }
+
+      toast.success(result.message);
+      router.push('/');
     } catch (error) {
       console.error('Google sign-in error:', error);
       toast.error('Failed to sign in with Google. Please try again.');

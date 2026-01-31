@@ -55,6 +55,13 @@
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
-    }
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "22695ba0-8bf7-4470-8962-1a52727dc373"
+      }
+    },
+    "owner": "not.so.lexy"
   }
 }

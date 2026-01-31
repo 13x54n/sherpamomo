@@ -1,5 +1,7 @@
+import crypto from 'crypto';
 import express, { Request, Response } from 'express';
 import rateLimit from 'express-rate-limit';
+import MobileAuthCode from '../models/MobileAuthCode';
 import PhoneVerification from '../models/PhoneVerification';
 import User from '../models/User';
 import {
@@ -10,6 +12,14 @@ import {
 } from '../utils/auth';
 
 const router = express.Router();
+
+// Allowed redirect URIs for mobile Google sign-in (browser → app)
+const ALLOWED_REDIRECT_SCHEMES = ['sherpamomo://', 'exp://'];
+function isAllowedRedirectUri(uri: string): boolean {
+  if (!uri || typeof uri !== 'string') return false;
+  const trimmed = uri.trim().toLowerCase();
+  return ALLOWED_REDIRECT_SCHEMES.some((scheme) => trimmed.startsWith(scheme));
+}
 
 // Test credentials for development/testing
 // Use 555-0100 to 555-0199 (reserved for testing)
@@ -165,6 +175,95 @@ router.post('/phone/verify', verifyLimiter, async (req: Request, res: Response) 
 
   } catch (error) {
     console.error('Phone verify error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// POST /api/auth/mobile-code - Create one-time code for mobile app (called by web after Google sign-in)
+// Body: { firebaseUid, email?, name?, redirect_uri }. redirect_uri must be sherpamomo:// or exp://
+const mobileCodeLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  limit: 10,
+  message: { message: 'Too many requests.' }
+});
+
+router.post('/mobile-code', mobileCodeLimiter, async (req: Request, res: Response) => {
+  try {
+    const { firebaseUid, email, name, redirect_uri: redirectUri } = req.body;
+
+    if (!firebaseUid || typeof firebaseUid !== 'string') {
+      return res.status(400).json({ message: 'firebaseUid is required' });
+    }
+    if (!isAllowedRedirectUri(redirectUri)) {
+      return res.status(400).json({
+        message: 'redirect_uri is required and must start with sherpamomo:// or exp://'
+      });
+    }
+
+    let user = await User.findOne({ firebaseUid });
+    if (!user) {
+      user = new User({
+        firebaseUid,
+        email: email || `${firebaseUid}@firebase.local`,
+        name: name || 'User',
+        authProvider: 'firebase'
+      });
+      await user.save();
+      console.log('👤 New user created (mobile Google):', user._id);
+    }
+
+    const code = crypto.randomBytes(16).toString('hex');
+    const expiresAt = new Date(Date.now() + 5 * 60 * 1000); // 5 minutes
+    await MobileAuthCode.create({ code, userId: user._id, expiresAt });
+
+    res.json({ code, redirect_uri: redirectUri.trim() });
+  } catch (error) {
+    console.error('Mobile code error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// POST /api/auth/mobile/callback - Exchange one-time code for JWT (called by mobile app)
+router.post('/mobile/callback', mobileCodeLimiter, async (req: Request, res: Response) => {
+  try {
+    const { code } = req.body;
+
+    if (!code || typeof code !== 'string') {
+      return res.status(400).json({ message: 'code is required' });
+    }
+
+    const record = await MobileAuthCode.findOne({ code }).exec();
+    if (!record) {
+      return res.status(400).json({ message: 'Invalid or expired code' });
+    }
+    if (record.expiresAt < new Date()) {
+      await MobileAuthCode.deleteOne({ _id: record._id });
+      return res.status(400).json({ message: 'Code expired' });
+    }
+
+    const user = await User.findById(record.userId);
+    if (!user) {
+      await MobileAuthCode.deleteOne({ _id: record._id });
+      return res.status(400).json({ message: 'User not found' });
+    }
+
+    await MobileAuthCode.deleteOne({ _id: record._id });
+
+    const token = signAuthToken(user._id.toString());
+
+    res.json({
+      message: 'Signed in successfully',
+      token,
+      user: {
+        id: user._id,
+        phone: user.phone,
+        name: user.name,
+        email: user.email,
+        role: user.role
+      }
+    });
+  } catch (error) {
+    console.error('Mobile callback error:', error);
     res.status(500).json({ message: 'Server error' });
   }
 });
