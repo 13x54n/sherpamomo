@@ -1,7 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import Link from 'next/link';
+import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -12,7 +11,6 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import {
   Search,
   Eye,
-  Edit,
   RefreshCw,
   Package,
   Truck,
@@ -20,7 +18,6 @@ import {
   XCircle,
   Clock,
   DollarSign,
-  User
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -103,7 +100,7 @@ export default function AdminOrders() {
   const [orders, setOrders] = useState(mockOrders);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
-  const [selectedOrder, setSelectedOrder] = useState<any>(null);
+  const [selectedOrder, setSelectedOrder] = useState<(typeof mockOrders)[number] | null>(null);
   const [updatingStatus, setUpdatingStatus] = useState<string | null>(null);
 
   // Filter orders
@@ -128,7 +125,7 @@ export default function AdminOrders() {
       );
       setOrders(updatedOrders);
       toast.success(`Order status updated to ${statusOptions.find(s => s.value === newStatus)?.label}`);
-    } catch (error) {
+    } catch {
       toast.error('Failed to update order status');
     } finally {
       setUpdatingStatus(null);
@@ -364,7 +361,7 @@ export default function AdminOrders() {
               <div>
                 <h4 className="font-medium mb-3">Order Items</h4>
                 <div className="space-y-2">
-                  {selectedOrder.items.map((item: any, index: number) => (
+                  {selectedOrder.items.map((item: { name: string; quantity: number; price: number }, index: number) => (
                     <div key={index} className="flex justify-between items-center p-3 border rounded-lg">
                       <div>
                         <p className="font-medium">{item.name}</p>

@@ -1,25 +1,18 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Separator } from '@/components/ui/separator';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import {
-  ArrowLeft,
   Bell,
-  Moon,
-  Globe,
   Shield,
   Trash2,
   Save,
   AlertTriangle,
-  Check
 } from 'lucide-react';
 import { useAuth } from '@/contexts/auth';
 import { toast } from 'sonner';
@@ -29,7 +22,7 @@ import { toast } from 'sonner';
 
 export default function SettingsPage() {
   const router = useRouter();
-  const { user, isAuthenticated, isLoading, signOut } = useAuth();
+  const { isAuthenticated, isLoading } = useAuth();
   const [settings, setSettings] = useState({
     // Notifications
     emailNotifications: true,
@@ -47,7 +40,7 @@ export default function SettingsPage() {
   });
 
   const [saving, setSaving] = useState(false);
-  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [, setShowDeleteDialog] = useState(false);
 
   // Redirect if not authenticated (only after loading is complete)
   useEffect(() => {
@@ -92,13 +85,7 @@ export default function SettingsPage() {
     }
   };
 
-  const handleDeleteAccount = async () => {
-    // TODO: Implement account deletion
-    console.log('Deleting account...');
-    toast.error('Account deletion is not implemented yet.');
-  };
-
-  const updateSetting = (key: string, value: any) => {
+  const updateSetting = (key: string, value: boolean | string) => {
     setSettings(prev => ({ ...prev, [key]: value }));
   };
 

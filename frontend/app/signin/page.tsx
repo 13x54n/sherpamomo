@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { Suspense, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
@@ -32,11 +32,13 @@ async function redirectToAppWithCode(mobileRedirectUri: string) {
   }
   const { code } = data;
   const sep = mobileRedirectUri.includes('?') ? '&' : '?';
-  window.location.href = `${mobileRedirectUri}${sep}code=${encodeURIComponent(code)}`;
+  if (typeof window !== 'undefined') {
+    window.location.href = `${mobileRedirectUri}${sep}code=${encodeURIComponent(code)}`;
+  }
   return true;
 }
 
-export default function SignInPage() {
+function SignInContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { signIn, isLoading, isAuthenticated } = useAuth();
@@ -60,7 +62,7 @@ export default function SignInPage() {
   const handleGoogleSignIn = async () => {
     try {
       // Use redirect in mobile in-app browser (avoids "missing initial state" / sessionStorage issues)
-      const result = await signIn({ useRedirect: isMobileFlow });
+      const result = await signIn({ useRedirect: Boolean(isMobileFlow) });
 
       if (!result.success) {
         toast.error(result.message);
@@ -157,5 +159,17 @@ export default function SignInPage() {
         </Card>
       </div>
     </div>
+  );
+}
+
+export default function SignInPage() {
+  return (
+    <Suspense fallback={
+      <div className="container mx-auto px-4 pt-20 py-8 min-h-[70%] flex justify-center items-center">
+        <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+      </div>
+    }>
+      <SignInContent />
+    </Suspense>
   );
 }

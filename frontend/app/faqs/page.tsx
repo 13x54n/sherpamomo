@@ -1,8 +1,7 @@
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
-import { ArrowLeft, HelpCircle, Truck, Package, CreditCard, ChefHat } from 'lucide-react';
+import { HelpCircle, ChefHat } from 'lucide-react';
 
 export default function FAQsPage() {
     const faqs = [

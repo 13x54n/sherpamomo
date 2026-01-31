@@ -77,11 +77,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       try {
         await signInWithRedirect(auth, googleProvider);
         return { success: true, message: 'Redirecting to Google…' };
-      } catch (error: any) {
+      } catch (error: unknown) {
         console.error('Google sign-in redirect error:', error);
         return {
           success: false,
-          message: error?.message || 'Redirect sign-in failed. Try again.',
+          message: error instanceof Error ? error.message : 'Redirect sign-in failed. Try again.',
         };
       }
     }
@@ -90,19 +90,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       await signInWithPopup(auth, googleProvider);
       return { success: true, message: 'Signed in with Google successfully!' };
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Google sign-in error:', error);
       let errorMessage = 'An error occurred during sign in';
-      if (error?.code === 'auth/popup-closed-by-user') errorMessage = 'Sign-in was cancelled';
-      else if (error?.code === 'auth/popup-blocked') errorMessage = 'Pop-up was blocked by your browser';
-      else if (error?.code === 'auth/account-exists-with-different-credential') errorMessage = 'Account exists with a different sign-in method';
+      const err = error as { code?: string };
+      if (err?.code === 'auth/popup-closed-by-user') errorMessage = 'Sign-in was cancelled';
+      else if (err?.code === 'auth/popup-blocked') errorMessage = 'Pop-up was blocked by your browser';
+      else if (err?.code === 'auth/account-exists-with-different-credential') errorMessage = 'Account exists with a different sign-in method';
       return { success: false, message: errorMessage };
     } finally {
       setIsLoading(false);
     }
   };
 
-  const signUp = async (name: string, email: string, password: string): Promise<{ success: boolean; message: string }> => {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars -- kept for API compatibility
+  const signUp = async (_name: string, _email: string, _password: string): Promise<{ success: boolean; message: string }> => {
     // Since we're only using Google sign-in, this method is not used
     // But keeping it for API compatibility
     return { success: false, message: 'Please use Google sign-in' };

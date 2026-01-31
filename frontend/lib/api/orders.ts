@@ -1,4 +1,3 @@
-import { CartItem } from '@/types/cart';
 import apiRequest from './client';
 
 export interface OrderItem {

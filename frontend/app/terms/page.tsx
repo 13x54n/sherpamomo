@@ -1,7 +1,6 @@
 import Link from 'next/link';
-import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { ArrowLeft, FileText, Shield, Users, CreditCard } from 'lucide-react';
+import { FileText, Shield, Users, CreditCard } from 'lucide-react';
 
 export default function TermsOfServicePage() {
   return (

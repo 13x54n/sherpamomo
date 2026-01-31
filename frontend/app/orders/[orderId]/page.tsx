@@ -75,9 +75,9 @@ export default function OrderDetailsPage({ params }: OrderDetailsPageProps) {
       setError(null);
       const orderData = await getOrder(orderId);
       setOrder(orderData);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Failed to fetch order details:', err);
-      setError(err.message || 'Failed to load order details. Please try again.');
+      setError(err instanceof Error ? err.message : 'Failed to load order details. Please try again.');
       toast.error('Failed to load order details');
     } finally {
       setLoading(false);
@@ -99,9 +99,9 @@ export default function OrderDetailsPage({ params }: OrderDetailsPageProps) {
       const result = await cancelOrder(orderId);
       setOrder(result.order); // Update the order with cancelled status
       toast.success('Order cancelled successfully');
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Failed to cancel order:', err);
-      toast.error(err.message || 'Failed to cancel order. Please try again.');
+      toast.error(err instanceof Error ? err.message : 'Failed to cancel order. Please try again.');
     } finally {
       setCancelling(false);
     }

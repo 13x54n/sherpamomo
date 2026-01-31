@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -16,10 +16,7 @@ import {
   Edit,
   Trash2,
   Package,
-  DollarSign,
   Star,
-  Eye,
-  MoreHorizontal
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -73,7 +70,7 @@ export default function AdminProducts() {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
-  const [editingProduct, setEditingProduct] = useState<any>(null);
+  const [editingProduct, setEditingProduct] = useState<(typeof mockProducts)[number] | null>(null);
   const [formData, setFormData] = useState({
     name: '',
     description: '',
@@ -160,7 +157,7 @@ export default function AdminProducts() {
     }
   };
 
-  const openEditDialog = (product: any) => {
+  const openEditDialog = (product: (typeof mockProducts)[number]) => {
     setEditingProduct(product);
     setFormData({
       name: product.name,
