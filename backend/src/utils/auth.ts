@@ -35,7 +35,11 @@ export const hashVerificationCode = (code: string): string => {
 
 // Sign a JWT for authenticated users
 export const signAuthToken = (userId: string): string => {
-  return jwt.sign({ sub: userId }, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN });
+  return jwt.sign(
+    { sub: userId },
+    JWT_SECRET,
+    { expiresIn: JWT_EXPIRES_IN } as jwt.SignOptions
+  );
 };
 
 // Verify a JWT and return the payload
