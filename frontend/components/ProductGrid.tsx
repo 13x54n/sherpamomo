@@ -76,7 +76,7 @@ export default function ProductGrid({ products }: { products: Product[] }) {
                     return newSet;
                 });
             }, 1000);
-        } catch (error) {
+        } catch {
             setLoadingProducts(prev => {
                 const newSet = new Set(prev);
                 newSet.delete(product.id);

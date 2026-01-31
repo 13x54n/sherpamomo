@@ -1,6 +1,7 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   ActivityIndicator,
+  Animated,
   FlatList,
   Image,
   Pressable,
@@ -15,6 +16,53 @@ import { productsApi, Product } from "../../lib/api";
 import { useCart } from "../../contexts/cart";
 import { useAuth } from "../../contexts/auth";
 import { colors, spacing, borderRadius, typography } from "../../lib/theme";
+
+function AddButtonWithAnimation({
+  item,
+  onAdd,
+  style,
+  stylePressed,
+}: {
+  item: Product;
+  onAdd: (p: Product) => void;
+  style: object;
+  stylePressed: object;
+}) {
+  const scale = useRef(new Animated.Value(1)).current;
+  const [showCheck, setShowCheck] = useState(false);
+
+  const runBounce = () => {
+    scale.setValue(1);
+    Animated.sequence([
+      Animated.timing(scale, { toValue: 0.88, duration: 80, useNativeDriver: true }),
+      Animated.timing(scale, { toValue: 1.15, duration: 120, useNativeDriver: true }),
+      Animated.timing(scale, { toValue: 1, duration: 100, useNativeDriver: true }),
+    ]).start();
+  };
+
+  const handlePress = (e: any) => {
+    e?.stopPropagation?.();
+    onAdd(item);
+    setShowCheck(true);
+    runBounce();
+    setTimeout(() => setShowCheck(false), 280);
+  };
+
+  return (
+    <Animated.View style={{ transform: [{ scale }] }}>
+      <Pressable
+        onPress={handlePress}
+        style={({ pressed }) => [style, pressed && stylePressed]}
+      >
+        <Ionicons
+          name={showCheck ? "checkmark" : "add"}
+          size={20}
+          color={colors.background}
+        />
+      </Pressable>
+    </Animated.View>
+  );
+}
 
 export default function HomeScreen() {
   const insets = useSafeAreaInsets();
@@ -174,24 +222,23 @@ export default function HomeScreen() {
           >
             <View style={styles.productImageContainer}>
               <Image source={{ uri: item.image }} style={styles.productImage} />
-              <Pressable
-                onPress={(e) => {
-                  e.stopPropagation();
-                  addItem(item);
-                }}
-                style={({ pressed }) => [
-                  styles.addButton,
-                  pressed && styles.addButtonPressed,
-                ]}
-              >
-                <Ionicons name="add" size={20} color={colors.background} />
-              </Pressable>
+              <AddButtonWithAnimation
+                item={item}
+                onAdd={addItem}
+                style={styles.addButton}
+                stylePressed={styles.addButtonPressed}
+              />
             </View>
             <View style={styles.productInfo}>
               {/* <Text style={styles.productCategory}>{item.category}</Text> */}
               <Text style={styles.productName} numberOfLines={1}>
                 {item.name}
               </Text>
+              {(item.amount != null || item.unit) && (
+                <Text style={styles.productQuantityUnit} numberOfLines={1}>
+                  {[item.amount != null ? item.amount : null, item.unit].filter(Boolean).join(" ")}
+                </Text>
+              )}
               <View style={styles.productPriceRow}>
                 <Text style={styles.productPrice}>
                   ${item.price.toFixed(2)}
@@ -404,18 +451,18 @@ const styles = StyleSheet.create({
   },
   productCard: {
     width: "48%",
-    // backgroundColor: colors.surface,
-    borderRadius: borderRadius.lg,
-    overflow: "hidden",
-    borderWidth: 1,
-    borderColor: colors.border,
+    backgroundColor: colors.surface,
+    // borderRadius: borderRadius.lg,
+    // overflow: "hidden",
+    // borderWidth: 1,
+    // borderColor: colors.border,
   },
   productCardPressed: {
     opacity: 0.9,
   },
   productImageContainer: {
     position: "relative",
-    aspectRatio: 3/2,
+    aspectRatio: 3/3,
   },
   productImage: {
     width: "100%",
@@ -453,6 +500,11 @@ const styles = StyleSheet.create({
     ...typography.body,
     color: colors.textPrimary,
     fontWeight: "600",
+    marginBottom: spacing.xs,
+  },
+  productQuantityUnit: {
+    ...typography.caption,
+    color: colors.textMuted,
     marginBottom: spacing.sm,
   },
   productPriceRow: {

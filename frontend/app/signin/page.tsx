@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { Suspense, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
@@ -10,49 +10,67 @@ import { toast } from 'sonner';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001/api';
 
-export default function SignInPage() {
+async function redirectToAppWithCode(mobileRedirectUri: string) {
+  const { getAuth } = await import('firebase/auth');
+  const { default: firebaseApp } = await import('@/lib/firebase');
+  const user = getAuth(firebaseApp).currentUser;
+  if (!user) return false;
+  const res = await fetch(`${API_BASE}/auth/mobile-code`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      firebaseUid: user.uid,
+      email: user.email ?? undefined,
+      name: user.displayName ?? undefined,
+      redirect_uri: mobileRedirectUri,
+    }),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    toast.error(data.message || 'Could not complete sign-in for app.');
+    return false;
+  }
+  const { code } = data;
+  const sep = mobileRedirectUri.includes('?') ? '&' : '?';
+  if (typeof window !== 'undefined') {
+    window.location.href = `${mobileRedirectUri}${sep}code=${encodeURIComponent(code)}`;
+  }
+  return true;
+}
+
+function SignInContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { signIn, isLoading } = useAuth();
+  const { signIn, isLoading, isAuthenticated } = useAuth();
   const mobileRedirectUri = searchParams.get('redirect_uri');
   const isMobileFlow = searchParams.get('mobile') === '1' && mobileRedirectUri;
+  const didAutoRedirect = useRef(false);
+
+  // When opened from mobile and user is already logged in (e.g. previous session in browser),
+  // immediately get a fresh code and redirect back to the app so the flow always works.
+  useEffect(() => {
+    if (!isMobileFlow || !mobileRedirectUri || isLoading || didAutoRedirect.current) return;
+    if (!isAuthenticated) return;
+
+    didAutoRedirect.current = true;
+    redirectToAppWithCode(mobileRedirectUri).catch((err) => {
+      console.error('Auto redirect for mobile failed:', err);
+      didAutoRedirect.current = false;
+    });
+  }, [isMobileFlow, mobileRedirectUri, isLoading, isAuthenticated]);
 
   const handleGoogleSignIn = async () => {
     try {
-      const result = await signIn();
+      // Use redirect in mobile in-app browser (avoids "missing initial state" / sessionStorage issues)
+      const result = await signIn({ useRedirect: Boolean(isMobileFlow) });
 
       if (!result.success) {
         toast.error(result.message);
         return;
       }
 
-      // If opened from mobile app, get one-time code and redirect back to app
-      if (isMobileFlow && mobileRedirectUri) {
-        const { getAuth } = await import('firebase/auth');
-        const { default: firebaseApp } = await import('@/lib/firebase');
-        const user = getAuth(firebaseApp).currentUser;
-        if (!user) {
-          toast.error('Sign-in state not ready. Please try again.');
-          return;
-        }
-        const res = await fetch(`${API_BASE}/auth/mobile-code`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            firebaseUid: user.uid,
-            email: user.email ?? undefined,
-            name: user.displayName ?? undefined,
-            redirect_uri: mobileRedirectUri,
-          }),
-        });
-        const data = await res.json().catch(() => ({}));
-        if (!res.ok) {
-          toast.error(data.message || 'Could not complete sign-in for app.');
-          return;
-        }
-        const { code } = data;
-        const sep = mobileRedirectUri.includes('?') ? '&' : '?';
-        window.location.href = `${mobileRedirectUri}${sep}code=${encodeURIComponent(code)}`;
+      if (isMobileFlow) {
+        // Page is navigating to Google; after redirect back, getRedirectResult + useEffect will send code to app
         return;
       }
 
@@ -63,6 +81,8 @@ export default function SignInPage() {
       toast.error('Failed to sign in with Google. Please try again.');
     }
   };
+
+  const isRedirecting = isMobileFlow && isAuthenticated && !isLoading;
 
   return (
     <div className="container mx-auto px-4 pt-20 py-8 min-h-[70%] flex justify-center">
@@ -78,13 +98,19 @@ export default function SignInPage() {
 
           <CardContent>
             <div className="space-y-6">
+              {isRedirecting ? (
+                <div className="flex flex-col items-center justify-center py-8 gap-3">
+                  <div className="w-8 h-8 border-2 border-orange-500 border-t-transparent rounded-full animate-spin" />
+                  <p className="text-sm text-muted-foreground">Redirecting you back to the app…</p>
+                </div>
+              ) : (
               <Button
                 onClick={handleGoogleSignIn}
                 className="w-full bg-white hover:bg-gray-50 text-gray-900 border-2 border-gray-300"
                 size="lg"
-                disabled={false}
+                disabled={isLoading}
               >
-                {false ? (
+                {isLoading ? (
                   <>
                     <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-900 mr-2"></div>
                     Signing in...
@@ -113,6 +139,7 @@ export default function SignInPage() {
                   </>
                 )}
               </Button>
+              )}
 
                 <div className="text-center">
                   <p className="text-sm text-muted-foreground">
@@ -132,5 +159,17 @@ export default function SignInPage() {
         </Card>
       </div>
     </div>
+  );
+}
+
+export default function SignInPage() {
+  return (
+    <Suspense fallback={
+      <div className="container mx-auto px-4 pt-20 py-8 min-h-[70%] flex justify-center items-center">
+        <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+      </div>
+    }>
+      <SignInContent />
+    </Suspense>
   );
 }

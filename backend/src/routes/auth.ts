@@ -147,12 +147,13 @@ router.post('/phone/verify', verifyLimiter, async (req: Request, res: Response) 
       await PhoneVerification.deleteOne({ _id: verification._id });
     }
 
-    // Find or create user
+    // Find or create user (use unique placeholder for firebaseUid so we never store null; avoids E11000 on sparse unique index)
     let user = await User.findOne({ phone });
     if (!user) {
       user = new User({
         phone,
-        authProvider: 'phone'
+        authProvider: 'phone',
+        firebaseUid: `phone_${phone}`,
       });
       await user.save();
       console.log('👤 New user created:', user._id);

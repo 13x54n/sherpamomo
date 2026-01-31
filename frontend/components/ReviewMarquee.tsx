@@ -32,7 +32,9 @@ export default function ReviewMarquee() {
     );
 }
 
-function ReviewCard({ review }: { review: any }) {
+type ReviewItem = { id: number; name: string; text: string; color: string; initial: string };
+
+function ReviewCard({ review }: { review: ReviewItem }) {
     return (
         <div className="w-[350px] p-6 rounded-2xl bg-muted/10 border border-border/50 hover:border-primary/30 transition-colors flex-shrink-0">
             <div className="flex items-center gap-1 text-yellow-500 mb-3">
@@ -42,7 +44,7 @@ function ReviewCard({ review }: { review: any }) {
                 <Star className="w-4 h-4 fill-current" />
                 <Star className="w-4 h-4 fill-current" />
             </div>
-            <p className="italic text-muted-foreground mb-4 line-clamp-2">"{review.text}"</p>
+            <p className="italic text-muted-foreground mb-4 line-clamp-2">&quot;{review.text}&quot;</p>
             <div className="flex items-center gap-3">
                 <div className={`w-8 h-8 rounded-full ${review.color} flex items-center justify-center font-bold text-xs`}>
                     {review.initial}

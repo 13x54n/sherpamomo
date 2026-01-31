@@ -1,6 +1,7 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   ActivityIndicator,
+  Animated,
   Image,
   Pressable,
   ScrollView,
@@ -21,6 +22,8 @@ export default function ProductScreen() {
   const router = useRouter();
   const { addItem } = useCart();
   const [quantity, setQuantity] = useState(1);
+  const addButtonScale = useRef(new Animated.Value(1)).current;
+  const [addedFeedback, setAddedFeedback] = useState(false);
   const [product, setProduct] = useState<Product | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -76,7 +79,16 @@ export default function ProductScreen() {
     for (let i = 0; i < quantity; i++) {
       addItem(product);
     }
-    router.push("/(tabs)/cart");
+    setAddedFeedback(true);
+    addButtonScale.setValue(1);
+    Animated.sequence([
+      Animated.timing(addButtonScale, { toValue: 0.94, duration: 80, useNativeDriver: true }),
+      Animated.timing(addButtonScale, { toValue: 1.06, duration: 120, useNativeDriver: true }),
+      Animated.timing(addButtonScale, { toValue: 1, duration: 100, useNativeDriver: true }),
+    ]).start();
+    setTimeout(() => {
+      router.push("/(tabs)/cart");
+    }, 320);
   };
 
   return (
@@ -203,18 +215,24 @@ export default function ProductScreen() {
         </View>
 
         {/* Add to Cart Button */}
-        <Pressable
-          style={({ pressed }) => [
-            styles.addToCartButton,
-            pressed && styles.addToCartButtonPressed,
-          ]}
-          onPress={handleAddToCart}
-        >
-          <Ionicons name="bag-add" size={20} color={colors.background} />
-          <Text style={styles.addToCartText}>
-            Add to Cart · ${(product.price * quantity).toFixed(2)}
-          </Text>
-        </Pressable>
+        <Animated.View style={{ flex: 1, transform: [{ scale: addButtonScale }] }}>
+          <Pressable
+            style={({ pressed }) => [
+              styles.addToCartButton,
+              pressed && styles.addToCartButtonPressed,
+            ]}
+            onPress={handleAddToCart}
+          >
+            <Ionicons
+              name={addedFeedback ? "checkmark" : "bag-add"}
+              size={20}
+              color={colors.background}
+            />
+            <Text style={styles.addToCartText}>
+              {addedFeedback ? "Added!" : `Add to Cart · $${(product.price * quantity).toFixed(2)}`}
+            </Text>
+          </Pressable>
+        </Animated.View>
       </View>
     </View>
   );
@@ -279,13 +297,18 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: borderRadius.full,
-    backgroundColor: "rgba(10, 10, 10, 0.6)",
+    backgroundColor: "rgba(255, 255, 255, 0.92)",
     alignItems: "center",
     justifyContent: "center",
-    backdropFilter: "blur(10px)",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.15,
+    shadowRadius: 3,
+    elevation: 3,
   },
   headerButtonPressed: {
-    backgroundColor: "rgba(10, 10, 10, 0.8)",
+    backgroundColor: "rgba(255, 255, 255, 1)",
+    opacity: 0.95,
   },
   detailsContainer: {
     flex: 1,

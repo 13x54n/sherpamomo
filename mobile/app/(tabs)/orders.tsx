@@ -191,7 +191,8 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.lg,
   },
   title: {
-    ...typography.h1,
+    ...typography.h2,
+    textAlign: "center",
     color: colors.textPrimary,
   },
   centerContainer: {

@@ -54,20 +54,20 @@ const contactOptions = [
   {
     icon: "call-outline",
     title: "Call Us",
-    subtitle: "+1 (416) 555-0123",
-    action: () => Linking.openURL("tel:+14165550123"),
+    subtitle: "+1 (416) 725-8527",
+    action: () => Linking.openURL("tel:+14167258527"),
   },
   {
     icon: "mail-outline",
     title: "Email Support",
-    subtitle: "support@sherpamomo.com",
-    action: () => Linking.openURL("mailto:support@sherpamomo.com"),
+    subtitle: "sherpamomo@outlook.com",
+    action: () => Linking.openURL("mailto:sherpamomo@outlook.com"),
   },
   {
     icon: "logo-instagram",
     title: "Instagram",
-    subtitle: "@sherpamomo",
-    action: () => Linking.openURL("https://instagram.com/sherpamomo"),
+    subtitle: "@sherpamomoinc",
+    action: () => Linking.openURL("https://instagram.com/sherpamomoinc"),
   },
 ];
 

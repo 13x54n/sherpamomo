@@ -9,6 +9,11 @@ const securityHeaders = [
 ];
 
 const nextConfig: NextConfig = {
+  allowedDevOrigins: [
+    "http://localhost:3001",
+    "http://127.0.0.1:3001",
+    "http://10.0.0.144:3001",
+  ],
   async headers() {
     return [
       {

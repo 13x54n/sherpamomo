@@ -6,12 +6,12 @@
     "orientation": "portrait",
     "icon": "./assets/images/SMPFT.png",
     "scheme": "sherpamomo",
-    "userInterfaceStyle": "dark",
+    "userInterfaceStyle": "light",
     "newArchEnabled": true,
     "splash": {
       "image": "./assets/images/SMPFT.png",
       "resizeMode": "contain",
-      "backgroundColor": "#0a0a0a"
+      "backgroundColor": "#ffffff"
     },
     "ios": {
       "supportsTablet": true,
@@ -19,18 +19,18 @@
       "splash": {
         "image": "./assets/images/SMPFT.png",
         "resizeMode": "contain",
-        "backgroundColor": "#0a0a0a"
+        "backgroundColor": "#ffffff"
       }
     },
     "android": {
       "adaptiveIcon": {
-        "backgroundColor": "#0a0a0a",
+        "backgroundColor": "#ffffff",
         "foregroundImage": "./assets/images/SMPFT.png"
       },
       "splash": {
         "image": "./assets/images/SMPFT.png",
         "resizeMode": "contain",
-        "backgroundColor": "#0a0a0a"
+        "backgroundColor": "#ffffff"
       },
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
@@ -48,7 +48,7 @@
           "image": "./assets/images/SMPFT.png",
           "imageWidth": 250,
           "resizeMode": "contain",
-          "backgroundColor": "#0a0a0a"
+          "backgroundColor": "#ffffff"
         }
       ]
     ],

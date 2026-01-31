@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useState, useEffect, useRef, ReactNode } from "react";
+import { createContext, useContext, useState, useEffect, ReactNode } from "react";
 import { CartItem, CartState, CartContextValue, CheckoutData, CheckoutResult } from "@/types/cart";
 import { products } from "@/lib/data";
 import { toast } from "sonner";
@@ -15,6 +15,12 @@ const defaultCart: CartState = {
 };
 
 const CartContext = createContext<CartContextValue | undefined>(undefined);
+
+function calculateTotals(items: CartItem[]): CartState {
+  const totalItems = items.reduce((sum, item) => sum + item.quantity, 0);
+  const subtotal = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
+  return { items, totalItems, subtotal };
+}
 
 export function CartProvider({ children }: { children: ReactNode }) {
   const [cart, setCart] = useState<CartState>(defaultCart);
@@ -37,13 +43,6 @@ export function CartProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(cart.items));
   }, [cart.items]);
-
-  function calculateTotals(items: CartItem[]): CartState {
-    const totalItems = items.reduce((sum, item) => sum + item.quantity, 0);
-    const subtotal = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
-
-    return { items, totalItems, subtotal };
-  }
 
   const addToCart = (product: typeof products[number], qty = 1) => {
     // Validate that product has required fields

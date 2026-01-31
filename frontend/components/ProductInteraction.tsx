@@ -26,7 +26,6 @@ export default function ProductInteraction({
     // Use product data if available, fallback to props for backward compatibility
     const price = product?.price ?? basePrice ?? 0;
     const perUnit = product?.amount ?? amountPerUnit ?? 1;
-    const unit = product?.unit ?? unitName;
 
     const increment = () => setQuantity(q => q + 1);
     const decrement = () => setQuantity(q => Math.max(1, q - 1));
@@ -41,7 +40,7 @@ export default function ProductInteraction({
                 addToCart(product, quantity);
                 // Add a small delay to show the loading animation
                 setTimeout(() => setIsLoading(false), 1000);
-            } catch (error) {
+            } catch {
                 setIsLoading(false);
             }
         }
