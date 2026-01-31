@@ -1,0 +1,1 @@
+also to start the server on the production server, run the command: pm2 start ecosystem.config.js
