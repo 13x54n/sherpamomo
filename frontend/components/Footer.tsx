@@ -18,6 +18,7 @@ const Footer = () => {
                             <li><Link href="/" className="hover:text-primary transition-colors">Home</Link></li>
                             <li><Link href="/about" className="hover:text-primary transition-colors">About Us</Link></li>
                             <li><Link href="/faqs" className="hover:text-primary transition-colors">FAQs</Link></li>
+                            <li><Link href="/support" className="hover:text-primary transition-colors">Support</Link></li>
                         </ul>
                     </div>
                     <div>
@@ -30,7 +31,7 @@ const Footer = () => {
                     <div>
                         <h4 className="font-semibold mb-4 text-foreground">Support</h4>
                         <div className="text-sm text-muted-foreground space-y-2">
-                            {/* <p>123 Himalayan Way, Kathmandu</p> */}
+                            <p><Link href="/support" className="hover:text-primary transition-colors">Contact us</Link></p>
                             <p>Email: sherpamomo@outlook.com</p>
                             <p>Phone: +1 416 725 8527</p>
                         </div>
